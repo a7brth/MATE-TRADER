@@ -1,46 +1,30 @@
-# 📈 TradeJournal
+# 📈 Mate Trader — Trading Journal
 
-A full, working **trading journal** website — no build step, no backend, no dependencies. Everything runs in your browser and your trades are saved locally (via `localStorage`).
+A full, single-file **trading journal** web app. No build step, no backend, no dependencies — everything runs in your browser and your data is saved locally (via `localStorage`).
 
 ## Features
 
-- **Dashboard** with key stats: Net P&L, Total Trades, Win Rate, Avg Win, Avg Loss, Profit Factor
-- **Equity curve** — a cumulative P&L chart drawn on `<canvas>`
-- **Add / Edit / Delete trades** with live P&L preview as you type
-- **Long & short** support with correct P&L math (fees included)
-- **Search & filter** trades by symbol, notes, side, or win/loss
-- **Import / Export** your data as JSON (backup or move between devices)
-- **Responsive** dark UI that works on desktop and mobile
-- **Persistent** — data stays saved in your browser between visits
+- **Dashboard** — Net P&L, win rate, profit factor, expectancy, average R, drawdown, best/worst, streaks
+- **Interactive charts** — equity curve, daily P&L, and drawdown views with hover tooltips
+- **Log trades** — long/short, lots, entry/exit, stop, take profit, fees, session, setup
+- **Live calculations** — P&L, R multiple, risk on stop, planned R:R, % of equity as you type
+- **Journaling** — how it felt, mistakes, execution rating (stars), plan, review, screenshot URL
+- **Trades table** — sortable columns, expandable rows, search & filters, CSV export
+- **Calendar** — monthly P&L heatmap; click a day to read its trades
+- **Analytics** — breakdowns by symbol, setup, session, day of week, direction, emotion, mistakes, rating; R-multiple distribution
+- **Risk sizing** — position size calculator + drawdown recovery table
+- **Settings** — starting balance, default risk, currency, custom instruments; import/export JSON; sample data
+- **Light / dark theme** and responsive (works on mobile)
 
 ## How to preview / access it
 
-### Option 1 — Just open the file (simplest)
-Open `index.html` directly in any web browser (double-click it, or drag it into a browser tab). It works fully offline.
-
-### Option 2 — Run a local web server (recommended)
-From the project folder, run **one** of these, then open the printed URL:
-
-```bash
-# Python 3
-python3 -m http.server 8000
-# then visit http://localhost:8000
-
-# Node.js
-npx serve .
-# or
-npx http-server
-```
+- **Live site (GitHub Pages):** enable Pages on this repo (Settings → Pages → Branch: `main` → `/root`), then open `https://<your-username>.github.io/trade-journal/`
+- **Open directly:** download `index.html` and open it in any browser — it works fully offline.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Page structure and views |
-| `styles.css` | Styling and responsive layout |
-| `app.js` | All logic: trades, stats, chart, storage |
+| `index.html` | The entire app — HTML, CSS, and JS in one self-contained file |
 
-## P&L formula
-
-- **Long:** `(exit − entry) × qty − fees`
-- **Short:** `(entry − exit) × qty − fees`
+> Tip: use **Settings → Load sample trades** to see the journal filled in, then **Delete all trades** to start fresh.
