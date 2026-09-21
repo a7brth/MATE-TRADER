@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TradeJournal — Track Your Trades</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">📈</span>
+      <span>TradeJournal</span>
+    </div>
+    <nav class="nav">
+      <a href="#dashboard" class="nav-link active" data-view="dashboard">Dashboard</a>
+      <a href="#trades" class="nav-link" data-view="trades">Trades</a>
+      <a href="#add" class="nav-link" data-view="add">Add Trade</a>
+    </nav>
+    <div class="header-actions">
+      <button id="exportBtn" class="btn btn-ghost" title="Export data as JSON">Export</button>
+      <button id="importBtn" class="btn btn-ghost" title="Import data from JSON">Import</button>
+      <input type="file" id="importFile" accept="application/json" hidden />
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="view active">
+      <h1 class="page-title">Dashboard</h1>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Net P&amp;L</span>
+          <span class="stat-value" id="statNetPnl">$0.00</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Trades</span>
+          <span class="stat-value" id="statTotal">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Win Rate</span>
+          <span class="stat-value" id="statWinRate">0%</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Avg Win</span>
+          <span class="stat-value positive" id="statAvgWin">$0.00</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Avg Loss</span>
+          <span class="stat-value negative" id="statAvgLoss">$0.00</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Profit Factor</span>
+          <span class="stat-value" id="statProfitFactor">0.00</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">Cumulative P&amp;L</h2>
+        <div class="chart-wrap">
+          <canvas id="pnlChart" width="900" height="320"></canvas>
+        </div>
+        <p class="empty-hint" id="chartEmpty">No trades yet — add one to see your equity curve.</p>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">Recent Trades</h2>
+        <div class="table-wrap">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Symbol</th><th>Side</th><th>Qty</th>
+                <th>Entry</th><th>Exit</th><th>P&amp;L</th>
+              </tr>
+            </thead>
+            <tbody id="recentBody"></tbody>
+          </table>
+        </div>
+        <p class="empty-hint" id="recentEmpty">No trades recorded yet.</p>
+      </div>
+    </section>
+
+    <!-- TRADES -->
+    <section id="trades" class="view">
+      <h1 class="page-title">All Trades</h1>
+      <div class="toolbar">
+        <input type="search" id="searchInput" class="input" placeholder="Search by symbol or notes…" />
+        <select id="filterSide" class="input">
+          <option value="">All sides</option>
+          <option value="long">Long</option>
+          <option value="short">Short</option>
+        </select>
+        <select id="filterResult" class="input">
+          <option value="">All results</option>
+          <option value="win">Wins</option>
+          <option value="loss">Losses</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table class="trade-table">
+          <thead>
+            <tr>
+              <th>Date</th><th>Symbol</th><th>Side</th><th>Qty</th>
+              <th>Entry</th><th>Exit</th><th>Fees</th><th>P&amp;L</th>
+              <th>Notes</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tradesBody"></tbody>
+        </table>
+      </div>
+      <p class="empty-hint" id="tradesEmpty">No trades match your filters.</p>
+    </section>
+
+    <!-- ADD / EDIT -->
+    <section id="add" class="view">
+      <h1 class="page-title" id="formTitle">Add Trade</h1>
+      <form id="tradeForm" class="trade-form panel">
+        <input type="hidden" id="tradeId" />
+        <div class="form-grid">
+          <label class="field">
+            <span>Date</span>
+            <input type="date" id="date" required />
+          </label>
+          <label class="field">
+            <span>Symbol</span>
+            <input type="text" id="symbol" placeholder="AAPL" required />
+          </label>
+          <label class="field">
+            <span>Side</span>
+            <select id="side">
+              <option value="long">Long</option>
+              <option value="short">Short</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Quantity</span>
+            <input type="number" id="qty" min="0" step="any" placeholder="100" required />
+          </label>
+          <label class="field">
+            <span>Entry Price</span>
+            <input type="number" id="entry" min="0" step="any" placeholder="150.00" required />
+          </label>
+          <label class="field">
+            <span>Exit Price</span>
+            <input type="number" id="exit" min="0" step="any" placeholder="155.00" required />
+          </label>
+          <label class="field">
+            <span>Fees</span>
+            <input type="number" id="fees" min="0" step="any" placeholder="0.00" value="0" />
+          </label>
+        </div>
+        <label class="field field-full">
+          <span>Notes</span>
+          <textarea id="notes" rows="3" placeholder="Setup, reasoning, lessons learned…"></textarea>
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="saveBtn">Save Trade</button>
+          <button type="button" class="btn btn-ghost" id="cancelEdit" hidden>Cancel</button>
+          <span class="live-pnl" id="livePnl"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
