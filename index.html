@@ -43,9 +43,14 @@ a{color:inherit}
 .shell{display:flex;min-height:100vh}
 .side{
   width:216px;flex:0 0 216px;background:var(--panel);border-right:1px solid var(--line);
-  display:flex;flex-direction:column;gap:6px;padding:20px 12px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:6px;padding:20px 12px;position:sticky;top:0;
+  height:100vh;max-height:100vh;overflow-y:auto;
 }
-.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
+.side::-webkit-scrollbar{width:7px}
+.side::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+.side::-webkit-scrollbar-track{background:transparent}
+.side{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;flex-shrink:0}
 .brand svg{width:30px;height:30px;flex:0 0 30px}
 .brand-name{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:-.01em;line-height:1}
 .brand-sub{display:block;font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.16em;margin-top:3px}
@@ -57,7 +62,8 @@ a{color:inherit}
 .navlink.active{background:var(--panel-2);color:var(--text);border-color:var(--line)}
 .navlink.active .dot{background:var(--gold)}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--faint);flex:0 0 6px}
-.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px;flex-shrink:0;padding-top:12px}
+.side .navlink{flex-shrink:0}
 .acct{padding:11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel-2)}
 .acct b{display:block;font-family:var(--mono);font-size:17px;margin-top:2px}
 .acct span{font-size:11px;color:var(--faint)}
@@ -206,6 +212,16 @@ tr.open-row td{background:var(--panel-2)}
 .hist div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
 .hist i{width:100%;border-radius:5px 5px 0 0;display:block;min-height:2px}
 .hist span{font-size:10.5px;color:var(--faint);font-family:var(--mono)}
+
+/* ---------- pie / donut ---------- */
+.pie-wrap{display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.pie-wrap svg{width:200px;height:200px;flex:0 0 200px}
+.pie-legend{display:flex;flex-direction:column;gap:8px;min-width:180px;flex:1}
+.pie-legend .leg{display:flex;align-items:center;gap:9px;font-size:13px}
+.pie-legend .leg i{width:12px;height:12px;border-radius:3px;flex:0 0 12px}
+.pie-legend .leg .lname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pie-legend .leg .lval{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.pie-center{font-family:var(--mono);font-weight:700}
 
 .toast{
   position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));
@@ -478,6 +494,22 @@ tr.open-row td{background:var(--panel-2)}
         <div class="panel-head"><h2>R multiple distribution</h2><span class="dim" style="font-size:12px" id="rSummary"></span></div>
         <div class="hist" id="rHist"></div>
       </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Composition</h2>
+          <div class="seg" id="pieSeg">
+            <button data-pie="setup" class="on">Setup</button>
+            <button data-pie="symbol">Symbol</button>
+            <button data-pie="session">Session</button>
+            <button data-pie="tags">Tag</button>
+          </div>
+        </div>
+        <div class="pie-wrap">
+          <svg id="pieChart" viewBox="0 0 220 220" aria-label="Composition pie chart"></svg>
+          <div class="pie-legend" id="pieLegend"></div>
+        </div>
+        <p class="dim" style="font-size:11.5px;margin:10px 0 0" id="pieNote">Share of gross profit by category (winning trades).</p>
+      </div>
       <div class="two-col">
         <div class="panel"><div class="panel-head"><h2>By symbol</h2></div><div class="bd" id="bdSymbol"></div></div>
         <div class="panel"><div class="panel-head"><h2>By setup</h2></div><div class="bd" id="bdSetup"></div></div>
@@ -676,7 +708,7 @@ var KEY = "meridian.journal.v1";
 /* ============ state ============ */
 var state = {trades:[], settings:Object.assign({}, DEFAULTS)};
 var db = null, dbDoc = null;
-var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", sort:{key:"date",dir:-1},
+var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", pie:"setup", sort:{key:"date",dir:-1},
           openRow:null, calMonth:new Date().getMonth(), calYear:new Date().getFullYear(),
           emo:"", mistakes:[], rating:0, dayFilter:null};
 
@@ -1277,6 +1309,67 @@ function renderAnalytics(){
   }).join("");
   var s=stats(list);
   $("#rSummary").textContent = total? total+" trades with a stop · avg "+(s.avgR>0?"+":"")+s.avgR.toFixed(2)+"R" : "add a stop loss to your trades to unlock this";
+
+  drawPie();
+}
+
+/* ---- pie / donut chart: share of gross profit by category ---- */
+var PIE_COLORS = ["#e0b341","#3ecf8e","#5b9dff","#c774e8","#ff8f5c","#4fd1c5","#f2c94c","#eb5a8c","#7c9cff","#9ad86b","#d98f5c","#67c9d8"];
+function drawPie(){
+  var svg=$("#pieChart"), legend=$("#pieLegend"); if(!svg) return;
+  var key=ui.pie;
+  // aggregate gross profit from WINNING trades per category (only positive P&L contributes to a share)
+  var rows=group(state.trades, key).map(function(g){
+    // recompute positive-only total for this bucket
+    return g;
+  });
+  // Build positive-profit totals per bucket by re-summing winners
+  var totals={};
+  state.trades.forEach(function(t){
+    var p=calcPnl(t); if(p<=0) return;
+    var keys=(key==="tags"||key==="mistakes")?(t[key]&&t[key].length?t[key]:["Untagged"]):[t[key]||"Unspecified"];
+    keys.forEach(function(k){ totals[k]=(totals[k]||0)+p; });
+  });
+  var items=Object.keys(totals).map(function(k){return {name:k, val:totals[k]};})
+    .sort(function(a,b){return b.val-a.val});
+  var grand=items.reduce(function(a,b){return a+b.val},0);
+
+  if(!items.length||grand<=0){
+    svg.innerHTML='<circle cx="110" cy="110" r="80" fill="none" stroke="var(--line)" stroke-width="20"/>'+
+      '<text x="110" y="115" text-anchor="middle" fill="var(--faint)" font-size="13" font-family="Inter,sans-serif">No winning trades yet</text>';
+    legend.innerHTML=''; return;
+  }
+  // collapse a long tail into "Other"
+  var top=items.slice(0,7), rest=items.slice(7);
+  if(rest.length){ top.push({name:"Other", val:rest.reduce(function(a,b){return a+b.val},0)}); }
+
+  var cx=110, cy=110, rO=90, rI=54, ang=-Math.PI/2, paths="";
+  top.forEach(function(it,i){
+    var frac=it.val/grand, a2=ang+frac*Math.PI*2;
+    var large=frac>0.5?1:0;
+    var x1=cx+rO*Math.cos(ang), y1=cy+rO*Math.sin(ang);
+    var x2=cx+rO*Math.cos(a2),  y2=cy+rO*Math.sin(a2);
+    var xi2=cx+rI*Math.cos(a2), yi2=cy+rI*Math.sin(a2);
+    var xi1=cx+rI*Math.cos(ang),yi1=cy+rI*Math.sin(ang);
+    var color=PIE_COLORS[i%PIE_COLORS.length];
+    paths+='<path d="M'+x1.toFixed(1)+' '+y1.toFixed(1)+
+      ' A'+rO+' '+rO+' 0 '+large+' 1 '+x2.toFixed(1)+' '+y2.toFixed(1)+
+      ' L'+xi2.toFixed(1)+' '+yi2.toFixed(1)+
+      ' A'+rI+' '+rI+' 0 '+large+' 0 '+xi1.toFixed(1)+' '+yi1.toFixed(1)+
+      ' Z" fill="'+color+'" stroke="var(--panel)" stroke-width="1.5"/>';
+    ang=a2;
+  });
+  // center label = total gross profit
+  paths+='<text x="110" y="104" text-anchor="middle" fill="var(--faint)" font-size="10.5" font-family="Inter,sans-serif">gross profit</text>';
+  paths+='<text x="110" y="122" text-anchor="middle" fill="var(--text)" font-size="16" class="pie-center" font-family="IBM Plex Mono,monospace">'+moneyC(grand)+'</text>';
+  svg.innerHTML=paths;
+
+  legend.innerHTML=top.map(function(it,i){
+    var color=PIE_COLORS[i%PIE_COLORS.length], pct=(it.val/grand*100).toFixed(0);
+    return '<div class="leg"><i style="background:'+color+'"></i>'+
+      '<span class="lname" title="'+esc(it.name)+'">'+esc(it.name)+'</span>'+
+      '<span class="lval">'+pct+'% · '+moneyC(it.val)+'</span></div>';
+  }).join("");
 }
 
 /* ---- monthly report ---- */
@@ -1559,6 +1652,15 @@ function wire(){
     $$("#chartSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
     drawChart(inRange(state.trades));
   });
+  var pieSeg=$("#pieSeg");
+  if(pieSeg){
+    pieSeg.addEventListener("click",function(e){
+      var b=e.target.closest("button"); if(!b) return;
+      ui.pie=b.dataset.pie;
+      $$("#pieSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
+      drawPie();
+    });
+  }
   $("#metricSeg").addEventListener("click",function(e){
     var b=e.target.closest("button"); if(!b) return;
     ui.metric=b.dataset.metric;
