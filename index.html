@@ -6,17 +6,17 @@
 <title>Mate Trader — Trading Journal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#0d1017; --panel:#141924; --panel-2:#1a2130; --line:#242d3d; --line-soft:#1d2533;
-  --text:#e8ecf3; --muted:#8b95a8; --faint:#5d6779;
+  --ink:#0d1017; --panel:#141924; --panel-2:#1a2130; --line:#2d384b; --line-soft:#232c3d;
+  --text:#f0f3f8; --muted:#a4afc2; --faint:#7c889b;
   --gold:#e0b341; --gold-dim:#8a6e28;
   --up:#3ecf8e; --down:#e8614d; --blue:#5b9dff;
   --shadow:0 18px 40px rgba(0,0,0,.45);
   --r:14px; --r-sm:9px;
-  --sans:'Inter Tight',system-ui,-apple-system,Segoe UI,sans-serif;
-  --serif:'Instrument Serif',Georgia,serif;
+  --sans:'Inter',system-ui,-apple-system,Segoe UI,sans-serif;
+  --serif:'Sora','Inter',system-ui,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
@@ -47,7 +47,7 @@ a{color:inherit}
 }
 .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px}
 .brand svg{width:30px;height:30px;flex:0 0 30px}
-.brand-name{font-family:var(--serif);font-size:23px;letter-spacing:.3px;line-height:1}
+.brand-name{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:-.01em;line-height:1}
 .brand-sub{display:block;font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.16em;margin-top:3px}
 .navlink{
   display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--r-sm);
@@ -64,7 +64,7 @@ a{color:inherit}
 
 .main{flex:1;min-width:0;padding:26px 30px 70px;max-width:1280px}
 .pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
-h1{font-family:var(--serif);font-weight:400;font-size:38px;margin:0;line-height:1.05}
+h1{font-family:var(--serif);font-weight:600;font-size:32px;margin:0;line-height:1.08;letter-spacing:-.02em}
 .pagehead p{margin:5px 0 0;color:var(--muted);font-size:13.5px;max-width:58ch}
 h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.01em}
 .view{display:none;animation:fade .22s ease}
@@ -103,7 +103,7 @@ h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.01em}
 }
 .chip.gold{color:var(--gold);border-color:var(--gold-dim)}
 .empty{text-align:center;padding:34px 16px;color:var(--muted);font-size:13.5px}
-.empty b{display:block;font-family:var(--serif);font-size:20px;color:var(--text);font-weight:400;margin-bottom:6px}
+.empty b{display:block;font-family:var(--serif);font-size:19px;color:var(--text);font-weight:600;margin-bottom:6px}
 
 /* ---------- hero ---------- */
 .hero{
@@ -183,9 +183,13 @@ tr.open-row td{background:var(--panel-2)}
 .cell.blank{background:transparent;border-color:transparent}
 .cell.has{cursor:pointer}
 .cell.has:hover{border-color:var(--gold-dim)}
-.cell .d{font-size:11px;color:var(--faint)}
-.cell .v{font-family:var(--mono);font-size:12px;font-weight:600}
-.cell .n{font-size:9.5px;color:var(--faint)}
+.cell .d{font-size:12px;font-weight:600;color:var(--text)}
+.cell .v{font-family:var(--mono);font-size:13px;font-weight:700}
+.cell .n{font-size:10.5px;font-weight:500;color:var(--muted)}
+/* On coloured (traded) days, force high-contrast readable text over the tinted background */
+.cell.has .d{color:#fff;opacity:.92}
+.cell.has .v{color:#fff}
+.cell.has .n{color:#fff;opacity:.82}
 .cal-legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--muted)}
 .swatch{width:13px;height:13px;border-radius:4px;display:inline-block;vertical-align:-2px;margin-right:5px}
 
@@ -217,7 +221,7 @@ tr.open-row td{background:var(--panel-2)}
 .modal[hidden]{display:none!important}
 .modal-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);width:100%;max-width:380px;padding:20px}
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.modal-head h2{font-family:var(--serif);font-weight:400;font-size:24px}
+.modal-head h2{font-family:var(--serif);font-weight:600;font-size:22px}
 .pass-wrap{position:relative;display:block}
 .pass-wrap .input{padding-right:62px}
 .pass-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--gold);cursor:pointer;font-size:12px;font-weight:600;padding:6px 8px;border-radius:6px}
@@ -234,8 +238,23 @@ tr.open-row td{background:var(--panel-2)}
   .auth-status{padding:6px 9px;font-size:11px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
   .navlink{white-space:nowrap;padding:8px 10px}
   .main{padding:18px 14px 60px}
-  h1{font-size:30px}
+  h1{font-size:26px}
   .netpnl{font-size:34px}
+  /* calendar: keep cells inside the viewport on phones */
+  .panel{padding:14px}
+  .cal{gap:4px}
+  .cell{aspect-ratio:auto;min-height:62px;padding:5px;border-radius:7px}
+  .cell .d{font-size:11px}
+  .cell .v{font-size:11px;line-height:1.15;word-break:break-word}
+  .cell .n{font-size:9px}
+  .cal .dow{font-size:10px}
+  .calcbar{gap:14px}
+}
+@media (max-width:480px){
+  .cell{min-height:54px;padding:4px}
+  .cell .v{font-size:10px}
+  .cell .n{display:none}       /* hide "3 trades" on very small screens to save room */
+  .form-grid{grid-template-columns:1fr 1fr}
 }
 </style>
 </head>
@@ -244,10 +263,9 @@ tr.open-row td{background:var(--panel-2)}
   <aside class="side">
     <div class="brand">
       <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="1.2" y="1.2" width="29.6" height="29.6" rx="8.5" fill="var(--panel-2)" stroke="var(--gold-dim)" stroke-width="1.3"/>
-        <path d="M6 22.5V10.2l5 7.4 5-7.4V22.5" stroke="var(--gold)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M18.6 10.4h7.6M22.4 10.4V22.5" stroke="var(--gold)" stroke-width="2.1" stroke-linecap="round"/>
-        <path d="M22.4 25.6v2.2" stroke="var(--up)" stroke-width="1.6" stroke-linecap="round"/>
+        <rect x="2" y="2" width="28" height="28" rx="9" fill="var(--gold)"/>
+        <path d="M9 20.5l5-5 3.2 3.2L23 12.5" stroke="#17130a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="23" cy="12.5" r="1.9" fill="#17130a"/>
       </svg>
       <div>
         <div class="brand-name">Mate Trader</div>
@@ -259,6 +277,7 @@ tr.open-row td{background:var(--panel-2)}
     <a class="navlink" data-view="add"><span class="dot"></span>Log a trade</a>
     <a class="navlink" data-view="calendar"><span class="dot"></span>Calendar</a>
     <a class="navlink" data-view="analytics"><span class="dot"></span>Analytics</a>
+    <a class="navlink" data-view="report"><span class="dot"></span>Monthly report</a>
     <a class="navlink" data-view="risk"><span class="dot"></span>Risk sizing</a>
     <a class="navlink" data-view="settings"><span class="dot"></span>Settings</a>
     <div class="side-foot">
@@ -348,6 +367,7 @@ tr.open-row td{background:var(--panel-2)}
           <label class="field"><span>Symbol</span><select class="input" id="fSymbol"><option value="">All</option></select></label>
           <label class="field"><span>Session</span><select class="input" id="fSession"><option value="">All</option></select></label>
           <label class="field"><span>Setup</span><select class="input" id="fSetup"><option value="">All</option></select></label>
+          <label class="field"><span>Tag</span><select class="input" id="fTag"><option value="">All</option></select></label>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
           <div id="filterSummary" class="dim" style="font-size:12.5px"></div>
@@ -401,6 +421,8 @@ tr.open-row td{background:var(--panel-2)}
           </div>
           <label class="field"><span>Chart screenshot URL</span><input class="input" type="url" id="fld-shot" placeholder="https://…" /></label>
         </div>
+
+        <label class="field field-full" style="margin-top:14px"><span>Tags / categories <span class="dim" style="font-weight:400">— comma separated, e.g. A-setup, scalp, funded</span></span><input class="input" type="text" id="fld-tags" placeholder="A-setup, scalp, morning" /></label>
 
         <label class="field field-full" style="margin-top:14px"><span>Plan — why you took it</span><textarea class="input" id="fld-plan" rows="2" placeholder="Bias, zone, trigger…"></textarea></label>
         <label class="field field-full" style="margin-top:12px"><span>Review — what actually happened</span><textarea class="input" id="fld-notes" rows="3" placeholder="Execution, management, the lesson worth keeping."></textarea></label>
@@ -465,6 +487,35 @@ tr.open-row td{background:var(--panel-2)}
         <div class="panel"><div class="panel-head"><h2>By how it felt</h2></div><div class="bd" id="bdEmotion"></div></div>
         <div class="panel"><div class="panel-head"><h2>Most expensive mistakes</h2></div><div class="bd" id="bdMistake"></div></div>
         <div class="panel"><div class="panel-head"><h2>By execution rating</h2></div><div class="bd" id="bdRating"></div></div>
+        <div class="panel"><div class="panel-head"><h2>By tag</h2></div><div class="bd" id="bdTag"></div></div>
+      </div>
+    </section>
+
+    <!-- MONTHLY REPORT -->
+    <section class="view" id="view-report">
+      <div class="pagehead">
+        <div>
+          <h1>Monthly report</h1>
+          <p>Every month at a glance — how much you made, how well you traded, and the trend over time.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Net P&amp;L by month</h2><span class="dim" style="font-size:12px" id="reportSummary"></span></div>
+        <div class="hist" id="monthHist"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Month-by-month breakdown</h2></div>
+        <div class="table-wrap">
+          <table style="min-width:720px">
+            <thead><tr>
+              <th class="no-sort">Month</th><th class="no-sort">Trades</th><th class="no-sort">Win rate</th>
+              <th class="no-sort">Net P&amp;L</th><th class="no-sort">Total R</th>
+              <th class="no-sort">Best day</th><th class="no-sort">Worst day</th>
+            </tr></thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="reportEmpty" hidden><b>No trades yet</b>Log some trades (or load the sample data in Settings) to see your monthly report.</div>
       </div>
     </section>
 
@@ -640,7 +691,19 @@ function money(n){
   return s+cur()+Math.abs(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function money0(n){return cur()+Math.round(n||0).toLocaleString()}
+/* compact signed money for tight spaces (calendar cells): +$1.2k, -$340 */
+function moneyC(n){
+  if(!isFinite(n)) n=0;
+  var s=n<0?"-":(n>0?"+":""), a=Math.abs(n);
+  var v = a>=1000 ? (a/1000).toFixed(a>=10000?0:1).replace(/\.0$/,"")+"k" : Math.round(a).toString();
+  return s+cur()+v;
+}
 function num(v){var n=parseFloat(v);return isFinite(n)?n:0}
+/* parse a free-text tags string into a clean array; keep it forgiving (comma or newline separated) */
+function parseTags(str){
+  return String(str||"").split(/[,\n]/).map(function(s){return s.trim()})
+    .filter(function(s,i,a){return s && a.indexOf(s)===i;});
+}
 function cls(n){return n>0?"up":(n<0?"down":"dim")}
 function toast(msg){
   var t=$("#toast"); t.textContent=msg; t.hidden=false;
@@ -979,7 +1042,7 @@ function wireChartHover(){
 
 /* ============ renders ============ */
 function renderAll(){
-  renderDashboard(); renderTrades(); renderCalendar(); renderAnalytics(); renderSettingsForm(); fillSelects();
+  renderDashboard(); renderTrades(); renderCalendar(); renderAnalytics(); renderReport(); renderSettingsForm(); fillSelects();
   $("#sideEquity").textContent=money0(stats(state.trades).equity);
 }
 
@@ -1020,7 +1083,7 @@ function renderDashboard(){
 function group(list, key){
   var map={};
   list.forEach(function(t){
-    var keys = key==="mistakes" ? (t.mistakes&&t.mistakes.length?t.mistakes:[]) : [t[key]||"Unspecified"];
+    var keys = (key==="mistakes"||key==="tags") ? (t[key]&&t[key].length?t[key]:[]) : [t[key]||"Unspecified"];
     keys.forEach(function(k){
       if(!map[k]) map[k]={name:String(k),n:0,pnl:0,r:0,rn:0,w:0,l:0};
       var g=map[k], p=calcPnl(t), r=rOf(t);
@@ -1053,19 +1116,20 @@ function breakdown(sel, rows, metric){
 function filtered(){
   var q=($("#fSearch").value||"").toLowerCase().trim();
   var side=$("#fSide").value, res=$("#fResult").value, sym=$("#fSymbol").value,
-      ses=$("#fSession").value, setup=$("#fSetup").value;
+      ses=$("#fSession").value, setup=$("#fSetup").value, tag=($("#fTag")?$("#fTag").value:"");
   return state.trades.filter(function(t){
     var p=calcPnl(t);
     if(side&&t.side!==side) return false;
     if(sym&&t.symbol!==sym) return false;
     if(ses&&t.session!==ses) return false;
     if(setup&&t.setup!==setup) return false;
+    if(tag&&(t.tags||[]).indexOf(tag)<0) return false;
     if(res==="win"&&!(p>0)) return false;
     if(res==="loss"&&!(p<0)) return false;
     if(res==="be"&&p!==0) return false;
     if(ui.dayFilter&&t.date!==ui.dayFilter) return false;
     if(q){
-      var hay=[t.symbol,t.notes,t.plan,t.setup,t.session,t.emotion,(t.mistakes||[]).join(" ")].join(" ").toLowerCase();
+      var hay=[t.symbol,t.notes,t.plan,t.setup,t.session,t.emotion,(t.mistakes||[]).join(" "),(t.tags||[]).join(" ")].join(" ").toLowerCase();
       if(hay.indexOf(q)<0) return false;
     }
     return true;
@@ -1109,6 +1173,7 @@ function detailHtml(t, span){
       (t.rating?'<div><span>Execution</span><span class="stars">'+"★".repeat(t.rating)+"☆".repeat(5-t.rating)+'</span></div>':'')+
     '</div>'+
     ((t.mistakes&&t.mistakes.length)?'<div style="margin-top:10px">'+t.mistakes.map(function(m){return '<span class="chip">'+esc(m)+'</span>'}).join(" ")+'</div>':'')+
+    ((t.tags&&t.tags.length)?'<div style="margin-top:8px">'+t.tags.map(function(tg){return '<span class="chip gold">#'+esc(tg)+'</span>'}).join(" ")+'</div>':'')+
     (t.plan?'<div style="margin-top:12px"><span class="dim" style="font-size:11px">Plan</span><div>'+esc(t.plan)+'</div></div>':'')+
     (t.notes?'<div style="margin-top:10px"><span class="dim" style="font-size:11px">Review</span><div>'+esc(t.notes)+'</div></div>':'')+
     (t.shot?'<div style="margin-top:12px"><img src="'+esc(t.shot)+'" alt="Chart screenshot" style="max-width:100%;border-radius:8px;border:1px solid var(--line)" loading="lazy"></div>':'')+
@@ -1146,13 +1211,15 @@ function renderCalendar(){
     var e=map[key];
     var bg="var(--panel-2)", extra="";
     if(e){
-      var alpha=(.18+Math.abs(e.pnl)/maxAbs*.55).toFixed(2);
-      bg="color-mix(in srgb,"+(e.pnl>=0?"var(--up)":"var(--down)")+" "+(alpha*100).toFixed(0)+"%,transparent)";
+      // stronger, more readable tint (min 45%, up to 95%) so the white text has enough contrast
+      var alpha=(.45+Math.abs(e.pnl)/maxAbs*.5);
+      if(alpha>.95) alpha=.95;
+      bg="color-mix(in srgb,"+(e.pnl>=0?"var(--up)":"var(--down)")+" "+(alpha*100).toFixed(0)+"%,var(--ink))";
       extra=' has';
     }
     html+='<div class="cell'+extra+'" data-day="'+key+'" style="background:'+bg+'">'+
       '<div class="d">'+d+'</div>'+
-      (e?'<div><div class="v '+cls(e.pnl)+'">'+money(e.pnl)+'</div><div class="n">'+e.n+' trade'+(e.n>1?"s":"")+'</div></div>':'')+
+      (e?'<div><div class="v">'+moneyC(e.pnl)+'</div><div class="n">'+e.n+' trade'+(e.n>1?"s":"")+'</div></div>':'')+
       '</div>';
   }
   $("#calGrid").innerHTML=html;
@@ -1182,6 +1249,7 @@ function renderAnalytics(){
   breakdown("#bdSide", group(list,"side").map(function(g){g.name=g.name==="long"?"Long":"Short";return g}), m);
   breakdown("#bdEmotion", group(list,"emotion"), m);
   breakdown("#bdMistake", group(list,"mistakes"), m);
+  breakdown("#bdTag", group(list,"tags"), m);
   breakdown("#bdRating", group(list.map(function(t){
     return Object.assign({},t,{ratingLabel: t.rating? "★".repeat(t.rating) : "Unrated"});
   }),"ratingLabel"), m);
@@ -1209,6 +1277,72 @@ function renderAnalytics(){
   }).join("");
   var s=stats(list);
   $("#rSummary").textContent = total? total+" trades with a stop · avg "+(s.avgR>0?"+":"")+s.avgR.toFixed(2)+"R" : "add a stop loss to your trades to unlock this";
+}
+
+/* ---- monthly report ---- */
+function monthKey(dateStr){ return (dateStr||"").slice(0,7); } // "YYYY-MM"
+function monthLabel(key){
+  var parts=key.split("-"); if(parts.length<2) return key;
+  var d=new Date(+parts[0], +parts[1]-1, 1);
+  return d.toLocaleDateString(undefined,{month:"short",year:"numeric"});
+}
+function renderReport(){
+  // group trades by calendar month
+  var byMonth={};
+  state.trades.forEach(function(t){
+    var k=monthKey(t.date); if(!k) return;
+    (byMonth[k]=byMonth[k]||[]).push(t);
+  });
+  var keys=Object.keys(byMonth).sort(); // chronological
+  var body=$("#reportBody"), hist=$("#monthHist"), empty=$("#reportEmpty");
+
+  if(!keys.length){
+    body.innerHTML=""; hist.innerHTML="";
+    empty.hidden=false;
+    $("#reportSummary").textContent="";
+    return;
+  }
+  empty.hidden=true;
+
+  // per-month stats (+ best/worst single day)
+  var rows=keys.map(function(k){
+    var list=byMonth[k], s=stats(list);
+    var dayMap={};
+    list.forEach(function(t){ dayMap[t.date]=(dayMap[t.date]||0)+calcPnl(t); });
+    var dayVals=Object.keys(dayMap).map(function(d){return dayMap[d]});
+    return {
+      key:k, n:s.n, net:s.net, winRate:s.winRate, totalR:s.totalR,
+      best: dayVals.length?Math.max.apply(null,dayVals):0,
+      worst: dayVals.length?Math.min.apply(null,dayVals):0
+    };
+  });
+
+  // bar chart (newest ~12 months)
+  var recent=rows.slice(-12);
+  var maxAbs=Math.max.apply(null,[1].concat(recent.map(function(r){return Math.abs(r.net)})));
+  hist.innerHTML=recent.map(function(r){
+    var h=Math.abs(r.net)/maxAbs*100, up=r.net>=0;
+    return '<div title="'+esc(monthLabel(r.key))+': '+money(r.net)+'">'+
+      '<i style="height:'+h+'%;background:'+(up?"var(--up)":"var(--down)")+';opacity:'+(r.net?.9:.2)+'"></i>'+
+      '<span class="'+cls(r.net)+'" style="font-size:10px">'+moneyC(r.net)+'</span>'+
+      '<span>'+monthLabel(r.key).replace(/ /,"\u00A0")+'</span></div>';
+  }).join("");
+
+  // table, newest first
+  body.innerHTML=rows.slice().reverse().map(function(r){
+    return '<tr>'+
+      '<td><b>'+esc(monthLabel(r.key))+'</b></td>'+
+      '<td class="mono">'+r.n+'</td>'+
+      '<td class="mono">'+r.winRate.toFixed(0)+'%</td>'+
+      '<td class="mono '+cls(r.net)+'"><b>'+money(r.net)+'</b></td>'+
+      '<td class="mono '+(r.totalR==null?"dim":cls(r.totalR))+'">'+(r.totalR==null?"—":(r.totalR>0?"+":"")+r.totalR.toFixed(2)+"R")+'</td>'+
+      '<td class="mono up">'+money(r.best)+'</td>'+
+      '<td class="mono down">'+money(r.worst)+'</td>'+
+      '</tr>';
+  }).join("");
+
+  var totalNet=rows.reduce(function(a,r){return a+r.net},0);
+  $("#reportSummary").textContent = keys.length+" month"+(keys.length>1?"s":"")+" · net "+money(totalNet);
 }
 
 /* ---- risk ---- */
@@ -1255,8 +1389,12 @@ function fillSelects(){
     var set={}; state.trades.forEach(function(t){if(t[key])set[t[key]]=1});
     return Object.keys(set).sort();
   };
-  [["#fSymbol",used("symbol")],["#fSession",SESSIONS],["#fSetup",SETUPS]].forEach(function(p){
-    var el=$(p[0]), v=el.value;
+  var usedTags=function(){
+    var set={}; state.trades.forEach(function(t){(t.tags||[]).forEach(function(tg){set[tg]=1})});
+    return Object.keys(set).sort();
+  };
+  [["#fSymbol",used("symbol")],["#fSession",SESSIONS],["#fSetup",SETUPS],["#fTag",usedTags()]].forEach(function(p){
+    var el=$(p[0]); if(!el) return; var v=el.value;
     el.innerHTML='<option value="">All</option>'+opts(p[1]);
     el.value=v;
   });
@@ -1297,7 +1435,8 @@ function formTrade(){
     session:$("#fld-session").value, setup:$("#fld-setup").value,
     mult:num($("#fld-mult").value)||multFor($("#fld-symbol").value),
     manual:$("#fld-manual").value, emotion:ui.emo, mistakes:ui.mistakes.slice(),
-    rating:ui.rating, shot:$("#fld-shot").value, plan:$("#fld-plan").value, notes:$("#fld-notes").value
+    rating:ui.rating, shot:$("#fld-shot").value, plan:$("#fld-plan").value, notes:$("#fld-notes").value,
+    tags:parseTags($("#fld-tags").value)
   };
 }
 function livePreview(){
@@ -1341,6 +1480,7 @@ function editTrade(id){
   $("#fld-setup").value=t.setup||SETUPS[0]; $("#fld-mult").value=t.mult||multFor(t.symbol);
   $("#fld-manual").value=t.manual||""; $("#fld-shot").value=t.shot||"";
   $("#fld-plan").value=t.plan||""; $("#fld-notes").value=t.notes||"";
+  $("#fld-tags").value=(t.tags||[]).join(", ");
   ui.emo=t.emotion||""; ui.mistakes=(t.mistakes||[]).slice(); ui.rating=t.rating||0; paintTags();
   $("#formTitle").textContent="Edit trade";
   $("#saveBtn").textContent="Update trade";
@@ -1356,6 +1496,7 @@ function go(view){
   $$(".view").forEach(function(s){s.classList.toggle("active",s.id==="view-"+view)});
   window.scrollTo({top:0,behavior:"auto"});
   if(view==="risk") renderRisk();
+  if(view==="report") renderReport();
 }
 
 /* ============ sample data ============ */
@@ -1390,6 +1531,7 @@ function sample(){
       emotion:EMOTIONS[i%EMOTIONS.length],
       mistakes: win?["Followed the plan"]:[MISTAKES[1+(i%(MISTAKES.length-1))]],
       rating: win?4:2, shot:"",
+      tags: [ ["A-setup","B-setup","scalp"][i%3], win?"clean":"forced" ],
       plan: side==="long"?"Bullish structure, retrace into demand.":"Liquidity swept above, waiting for displacement down.",
       notes: win?"Held to target, management was clean.":"Stopped out — entry was early, zone had not reacted yet."
     });
@@ -1424,11 +1566,11 @@ function wire(){
     renderAnalytics();
   });
 
-  ["fSearch","fSide","fResult","fSymbol","fSession","fSetup"].forEach(function(id){
-    $("#"+id).addEventListener("input",renderTrades);
+  ["fSearch","fSide","fResult","fSymbol","fSession","fSetup","fTag"].forEach(function(id){
+    var el=$("#"+id); if(el) el.addEventListener("input",renderTrades);
   });
   $("#clearFilters").addEventListener("click",function(){
-    ["fSearch","fSide","fResult","fSymbol","fSession","fSetup"].forEach(function(id){$("#"+id).value=""});
+    ["fSearch","fSide","fResult","fSymbol","fSession","fSetup","fTag"].forEach(function(id){var el=$("#"+id); if(el) el.value=""});
     ui.dayFilter=null; renderTrades();
   });
 
