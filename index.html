@@ -191,8 +191,19 @@ tr.open-row td{background:var(--panel-2)}
 :root[data-theme="light"] .tagpick button{background:#fff}
 .tagpick button.on{border-color:var(--gold);color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,transparent)}
 .rate{display:flex;gap:4px}
-.rate button{background:none;border:0;cursor:pointer;color:var(--faint);font-size:19px;line-height:1;padding:0}
+.rate button{background:none;border:0;cursor:pointer;color:var(--faint);font-size:19px;line-height:1;padding:0;transition:color .15s ease, transform .1s ease}
+.rate button:hover{color:var(--gold-dim)}
 .rate button.on{color:var(--gold)}
+
+/* chart screenshot upload */
+.shot-drop{border:1px dashed var(--line);border-radius:var(--r-sm);background:var(--ink);padding:12px;transition:border-color .16s ease, background .16s ease}
+:root[data-theme="light"] .shot-drop{background:#fff}
+.shot-drop.drag{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 8%,transparent)}
+.shot-empty{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.shot-preview{position:relative;display:inline-block;max-width:100%}
+.shot-preview img{max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--line);display:block}
+.shot-remove{position:absolute;top:6px;right:6px;background:rgba(13,16,23,.8);color:#fff;border-color:transparent;padding:3px 8px}
+.shot-remove:hover{background:rgba(232,97,77,.9)}
 
 /* ---------- calendar ---------- */
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
@@ -321,11 +332,15 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
 <div class="shell">
   <aside class="side">
     <div class="brand">
-      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="2" y="2" width="28" height="28" rx="9" fill="#e6b53c"/>
-        <!-- MT monogram: angular "M" joined with a "T" crossbar -->
-        <path d="M7.5 22.5V10.5l4.2 6 4.2-6v12" fill="none" stroke="#17130a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M15.5 10.8h9.2M20.1 10.8V22.5" fill="none" stroke="#17130a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+        <rect x="4" y="4" width="92" height="92" rx="26" fill="#e6b53c"/>
+        <!-- MT monogram (solid, angular) matching the provided artwork -->
+        <g fill="#141414">
+          <!-- angular M: left stem + inner V, right leg cut by the T -->
+          <path d="M22 74 L22 33 L33 33 L47 55 L47 74 L38 74 L38 52 L31 41 L31 74 Z"/>
+          <!-- T: wide top bar joined to the M, with centre stem -->
+          <path d="M44 33 L80 33 L80 44 L67 44 L67 74 L56 74 L56 44 L51 44 L44 33 Z"/>
+        </g>
       </svg>
       <div>
         <div class="brand-name">Mate Trader</div>
@@ -498,7 +513,20 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
             <span>Execution rating</span>
             <div class="rate" id="ratePick"></div>
           </div>
-          <label class="field"><span>Chart screenshot URL</span><input class="input" type="url" id="fld-shot" placeholder="https://…" /></label>
+          <div class="field"><span>Chart screenshot</span>
+            <input type="file" id="fld-shot-file" accept="image/*" hidden />
+            <input type="hidden" id="fld-shot" />
+            <div class="shot-drop" id="shotDrop">
+              <div class="shot-empty" id="shotEmpty">
+                <button type="button" class="btn btn-sm" id="shotPick">Choose image</button>
+                <span class="dim" style="font-size:11.5px">or drag &amp; drop / paste</span>
+              </div>
+              <div class="shot-preview" id="shotPreview" hidden>
+                <img id="shotImg" alt="Chart screenshot preview" />
+                <button type="button" class="btn btn-sm shot-remove" id="shotRemove" title="Remove image">✕</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <label class="field field-full" style="margin-top:14px"><span>Tags / categories <span class="dim" style="font-weight:400">— comma separated, e.g. A-setup, scalp, funded</span></span><input class="input" type="text" id="fld-tags" placeholder="A-setup, scalp, morning" /></label>
@@ -1717,6 +1745,46 @@ function paintTags(){
   $$("#mistakePick button").forEach(function(b){b.classList.toggle("on",ui.mistakes.indexOf(b.dataset.mis)>=0)});
   $$("#ratePick button").forEach(function(b){b.classList.toggle("on",parseInt(b.dataset.rate,10)<=ui.rating)});
 }
+/* ---- chart screenshot upload (stored as a data URL) ---- */
+function setShot(dataUrl){
+  $("#fld-shot").value = dataUrl || "";
+  var hasImg = !!dataUrl;
+  $("#shotPreview").hidden = !hasImg;
+  $("#shotEmpty").hidden = hasImg;
+  if(hasImg) $("#shotImg").src = dataUrl;
+}
+function readImageFile(file){
+  if(!file || !/^image\//.test(file.type)){ toast("Please choose an image file"); return; }
+  if(file.size > 4*1024*1024){ toast("Image is large (>4MB) — it may not sync. Try a smaller one."); }
+  var rd=new FileReader();
+  rd.onload=function(){ setShot(rd.result); };
+  rd.readAsDataURL(file);
+}
+function wireShotUpload(){
+  var drop=$("#shotDrop"), fileInput=$("#fld-shot-file");
+  if(!drop) return;
+  $("#shotPick").addEventListener("click",function(){ fileInput.click(); });
+  fileInput.addEventListener("change",function(e){ if(e.target.files[0]) readImageFile(e.target.files[0]); e.target.value=""; });
+  $("#shotRemove").addEventListener("click",function(){ setShot(""); });
+  ["dragenter","dragover"].forEach(function(ev){
+    drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add("drag"); });
+  });
+  ["dragleave","drop"].forEach(function(ev){
+    drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove("drag"); });
+  });
+  drop.addEventListener("drop",function(e){
+    var f=e.dataTransfer && e.dataTransfer.files[0]; if(f) readImageFile(f);
+  });
+  // paste an image directly onto the form
+  $("#tradeForm").addEventListener("paste",function(e){
+    var items=(e.clipboardData||{}).items||[];
+    for(var i=0;i<items.length;i++){
+      if(items[i].type && items[i].type.indexOf("image")===0){
+        var f=items[i].getAsFile(); if(f){ readImageFile(f); e.preventDefault(); break; }
+      }
+    }
+  });
+}
 function formTrade(){
   return {
     date:$("#fld-date").value, time:$("#fld-time").value, symbol:$("#fld-symbol").value,
@@ -1754,6 +1822,7 @@ function resetForm(){
   $("#fld-symbol").value=state.settings.defaultSymbol;
   $("#fld-mult").value=multFor(state.settings.defaultSymbol);
   ui.emo="";ui.mistakes=[];ui.rating=0; paintTags();
+  setShot("");
   $("#formTitle").textContent="Log a trade";
   $("#saveBtn").textContent="Save trade";
   $("#cancelEdit").hidden=true;
@@ -1769,7 +1838,7 @@ function editTrade(id){
   $("#fld-sl").value=t.sl==null?"":t.sl; $("#fld-tp").value=t.tp==null?"":t.tp;
   $("#fld-fees").value=t.fees||0; $("#fld-session").value=t.session||SESSIONS[0];
   $("#fld-setup").value=t.setup||SETUPS[0]; $("#fld-mult").value=t.mult||multFor(t.symbol);
-  $("#fld-manual").value=t.manual||""; $("#fld-shot").value=t.shot||"";
+  $("#fld-manual").value=t.manual||""; setShot(t.shot||"");
   $("#fld-plan").value=t.plan||""; $("#fld-notes").value=t.notes||"";
   $("#fld-tags").value=(t.tags||[]).join(", ");
   ui.emo=t.emotion||""; ui.mistakes=(t.mistakes||[]).slice(); ui.rating=t.rating||0; paintTags();
@@ -2031,7 +2100,7 @@ function boot(){
   }catch(e){}
   $("#themeBtn").textContent = document.documentElement.dataset.theme==="dark" ? "Switch to light" : "Switch to dark";
   var saved=lsLoad(); if(saved) hydrate(saved);
-  tagButtons(); wire(); wireAuth(); closeAuthModal(); fillSelects(); resetForm(); renderDD();
+  tagButtons(); wire(); wireAuth(); wireShotUpload(); closeAuthModal(); fillSelects(); resetForm(); renderDD();
   $("#rk-bal").value=state.settings.startBalance;
   $("#rk-pct").value=state.settings.riskPct;
   $("#set-sym").value=state.settings.defaultSymbol;
