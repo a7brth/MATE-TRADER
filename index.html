@@ -1137,7 +1137,9 @@ function renderDashboard(){
     ["Max drawdown", money0(-s.maxDD), s.maxDDpct.toFixed(1)+"% from peak", s.maxDD?"down":""],
     ["Best day", money(s.best), "single best trade", "up"],
     ["Worst day", money(s.worst), "single worst trade", "down"],
-    ["Current streak", s.streak?(s.streak+" "+(s.sType==="W"?"wins":"losses")):"—", "in a row", s.streak?(s.sType==="W"?"up":"down"):""]
+    ["Current streak", s.streak?(s.streak+" "+(s.sType==="W"?"wins":"losses")):"—", "in a row", s.streak?(s.sType==="W"?"up":"down"):""],
+    ["Gross profit", money(list.reduce(function(a,t){var p=calcPnl(t);return a+(p>0?p:0)},0)), "from winning trades", "up"],
+    ["Total fees", money0(-list.reduce(function(a,t){return a+num(t.fees)},0)), "fees & swap paid", list.some(function(t){return num(t.fees)>0})?"down":""]
   ];
   $("#statsGrid").innerHTML=cells.map(function(c){
     return '<div class="stat"><span>'+c[0]+'</span><b class="'+c[3]+'">'+c[1]+'</b><i>'+c[2]+'</i></div>';
