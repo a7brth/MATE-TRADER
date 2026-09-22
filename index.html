@@ -204,12 +204,14 @@ tr.open-row td{background:var(--panel-2)}
 :root[data-theme="light"] .shot-drop{background:#fff}
 .shot-drop.drag{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 8%,transparent)}
 .shot-empty{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.shot-preview{position:relative;display:inline-block;max-width:100%}
-.shot-preview[hidden]{display:none!important}
 .shot-empty[hidden]{display:none!important}
-.shot-preview img{max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--line);display:block}
-.shot-remove{position:absolute;top:6px;right:6px;background:rgba(13,16,23,.8);color:#fff;border-color:transparent;padding:3px 8px}
-.shot-remove:hover{background:rgba(232,97,77,.9)}
+.shot-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:0}
+.shot-grid:not(:empty){margin-bottom:10px}
+.shot-cell{position:relative;width:84px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--line);cursor:zoom-in;line-height:0;background:var(--panel-2)}
+.shot-cell img{width:100%;height:100%;object-fit:cover;display:block}
+.shot-cell .shot-remove{position:absolute;top:3px;right:3px;background:rgba(13,16,23,.82);color:#fff;border:0;border-radius:5px;padding:1px 6px;font-size:12px;cursor:pointer;line-height:1.4;opacity:0;transition:opacity .15s ease}
+.shot-cell:hover .shot-remove{opacity:1}
+.shot-cell .shot-remove:hover{background:rgba(232,97,77,.95)}
 /* detail-view screenshot thumbnail + zoom affordance */
 .shot-thumb{position:relative;display:inline-block;max-width:260px;cursor:zoom-in;border-radius:8px;overflow:hidden;border:1px solid var(--line);line-height:0}
 .shot-thumb img{display:block;width:100%;max-height:180px;object-fit:cover}
@@ -531,16 +533,12 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
             <div class="rate" id="ratePick"></div>
           </div>
           <div class="field"><span>Chart screenshot</span>
-            <input type="file" id="fld-shot-file" accept="image/*" hidden />
-            <input type="hidden" id="fld-shot" />
+            <input type="file" id="fld-shot-file" accept="image/*" multiple hidden />
             <div class="shot-drop" id="shotDrop">
+              <div class="shot-grid" id="shotGrid"></div>
               <div class="shot-empty" id="shotEmpty">
-                <button type="button" class="btn btn-sm" id="shotPick">Choose image</button>
-                <span class="dim" style="font-size:11.5px">or drag &amp; drop / paste</span>
-              </div>
-              <div class="shot-preview" id="shotPreview" hidden>
-                <img id="shotImg" alt="Chart screenshot preview" />
-                <button type="button" class="btn btn-sm shot-remove" id="shotRemove" title="Remove image">✕</button>
+                <button type="button" class="btn btn-sm" id="shotPick">Choose images</button>
+                <span class="dim" style="font-size:11.5px">or drag &amp; drop / paste — up to 10</span>
               </div>
             </div>
           </div>
@@ -825,7 +823,7 @@ var state = {trades:[], settings:Object.assign({}, DEFAULTS)};
 var db = null, dbDoc = null;
 var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", pie:"setup", dashPie:"setup", sort:{key:"date",dir:-1},
           openRow:null, calMonth:new Date().getMonth(), calYear:new Date().getFullYear(),
-          emo:"", mistakes:[], rating:0, dayFilter:null};
+          emo:"", mistakes:[], rating:0, shots:[], dayFilter:null};
 
 /* ============ helpers ============ */
 var $ = function(s){return document.querySelector(s)};
@@ -1356,7 +1354,13 @@ function detailHtml(t, span){
     ((t.tags&&t.tags.length)?'<div style="margin-top:8px">'+t.tags.map(function(tg){return '<span class="chip gold">#'+esc(tg)+'</span>'}).join(" ")+'</div>':'')+
     (t.plan?'<div style="margin-top:12px"><span class="dim" style="font-size:11px">Plan</span><div>'+esc(t.plan)+'</div></div>':'')+
     (t.notes?'<div style="margin-top:10px"><span class="dim" style="font-size:11px">Review</span><div>'+esc(t.notes)+'</div></div>':'')+
-    (t.shot?'<div style="margin-top:12px"><div class="shot-thumb" data-shot="'+esc(t.shot)+'"><img src="'+esc(t.shot)+'" alt="Chart screenshot" loading="lazy"><span class="shot-zoom" title="View full size">⤢</span></div></div>':'')+
+    (function(){
+      var imgs = t.shots && t.shots.length ? t.shots : (t.shot ? [t.shot] : []);
+      if(!imgs.length) return '';
+      return '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">'+imgs.map(function(src){
+        return '<div class="shot-thumb" data-shot="'+esc(src)+'"><img src="'+esc(src)+'" alt="Chart screenshot" loading="lazy"><span class="shot-zoom" title="View full size">⤢</span></div>';
+      }).join('')+'</div>';
+    })()+
     '</td></tr>';
 }
 function renderTrades(){
@@ -1410,12 +1414,19 @@ function renderCalendar(){
   var ms=stats(monthTrades);
   var green=0,red=0;
   Object.keys(map).forEach(function(k){map[k].pnl>=0?green++:red++});
+  var dayPnls=Object.keys(map).map(function(k){return map[k].pnl});
+  var bestDay=dayPnls.length?Math.max.apply(null,dayPnls):0;
+  var worstDay=dayPnls.length?Math.min.apply(null,dayPnls):0;
+  var tradingDays=green+red;
+  var avgDay=tradingDays?ms.net/tradingDays:0;
   $("#calStats").innerHTML=[
     ["Month P&L", money(ms.net), ms.n+" trades", cls(ms.net)],
-    ["Green days", String(green), "of "+(green+red)+" traded", "up"],
-    ["Red days", String(red), "", "down"],
-    ["Best day", money(Math.max.apply(null,[0].concat(Object.keys(map).map(function(k){return map[k].pnl})))), "", "up"],
-    ["Month win rate", ms.winRate.toFixed(0)+"%", "", ""]
+    ["Green days", String(green), "of "+tradingDays+" traded", "up"],
+    ["Red days", String(red), "of "+tradingDays+" traded", "down"],
+    ["Best day", money(bestDay), "top green day", "up"],
+    ["Worst day", money(worstDay), "biggest red day", "down"],
+    ["Avg / trading day", money(avgDay), tradingDays+" active days", cls(avgDay)],
+    ["Month win rate", ms.winRate.toFixed(0)+"%", ms.wins+"W / "+ms.losses+"L", ""]
   ].map(function(c){return '<div class="stat"><span>'+c[0]+'</span><b class="'+c[3]+'">'+c[1]+'</b><i>'+c[2]+'</i></div>'}).join("");
   $("#dayDetail").innerHTML="";
 }
@@ -1782,26 +1793,43 @@ function paintTags(){
   $$("#ratePick button").forEach(function(b){b.classList.toggle("on",parseInt(b.dataset.rate,10)<=ui.rating)});
 }
 /* ---- chart screenshot upload (stored as a data URL) ---- */
-function setShot(dataUrl){
-  $("#fld-shot").value = dataUrl || "";
-  var hasImg = !!dataUrl;
-  $("#shotPreview").hidden = !hasImg;
-  $("#shotEmpty").hidden = hasImg;
-  if(hasImg) $("#shotImg").src = dataUrl;
+var MAX_SHOTS = 10;
+// render the working set of screenshots (ui.shots) as removable thumbnails
+function renderShots(){
+  var grid=$("#shotGrid"), empty=$("#shotEmpty");
+  if(!grid) return;
+  grid.innerHTML = (ui.shots||[]).map(function(src,i){
+    return '<div class="shot-cell" data-shot="'+esc(src)+'"><img src="'+esc(src)+'" alt="screenshot '+(i+1)+'" />'+
+      '<button type="button" class="shot-remove" data-rm="'+i+'" title="Remove">✕</button></div>';
+  }).join("");
+  // hide the "choose" prompt only when we've hit the max
+  if(empty) empty.hidden = (ui.shots||[]).length >= MAX_SHOTS;
 }
-function readImageFile(file){
-  if(!file || !/^image\//.test(file.type)){ toast("Please choose an image file"); return; }
-  if(file.size > 4*1024*1024){ toast("Image is large (>4MB) — it may not sync. Try a smaller one."); }
-  var rd=new FileReader();
-  rd.onload=function(){ setShot(rd.result); };
-  rd.readAsDataURL(file);
+function addImages(files){
+  files = Array.prototype.slice.call(files||[]).filter(function(f){return f && /^image\//.test(f.type);});
+  if(!files.length){ return; }
+  var room = MAX_SHOTS - (ui.shots||[]).length;
+  if(room <= 0){ toast("Maximum "+MAX_SHOTS+" images"); return; }
+  if(files.length > room){ toast("Only "+room+" more image"+(room>1?"s":"")+" allowed (max "+MAX_SHOTS+")"); files = files.slice(0, room); }
+  files.forEach(function(file){
+    if(file.size > 4*1024*1024){ toast("One image is large (>4MB) — it may not sync well."); }
+    var rd=new FileReader();
+    rd.onload=function(){ ui.shots.push(rd.result); renderShots(); };
+    rd.readAsDataURL(file);
+  });
 }
 function wireShotUpload(){
-  var drop=$("#shotDrop"), fileInput=$("#fld-shot-file");
+  var drop=$("#shotDrop"), fileInput=$("#fld-shot-file"), grid=$("#shotGrid");
   if(!drop) return;
   $("#shotPick").addEventListener("click",function(){ fileInput.click(); });
-  fileInput.addEventListener("change",function(e){ if(e.target.files[0]) readImageFile(e.target.files[0]); e.target.value=""; });
-  $("#shotRemove").addEventListener("click",function(){ setShot(""); });
+  fileInput.addEventListener("change",function(e){ addImages(e.target.files); e.target.value=""; });
+  // remove or zoom a thumbnail
+  grid.addEventListener("click",function(e){
+    var rm=e.target.closest("[data-rm]");
+    if(rm){ e.stopPropagation(); ui.shots.splice(parseInt(rm.dataset.rm,10),1); renderShots(); return; }
+    var cell=e.target.closest(".shot-cell");
+    if(cell){ openLightbox(cell.dataset.shot); }
+  });
   ["dragenter","dragover"].forEach(function(ev){
     drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add("drag"); });
   });
@@ -1809,16 +1837,15 @@ function wireShotUpload(){
     drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove("drag"); });
   });
   drop.addEventListener("drop",function(e){
-    var f=e.dataTransfer && e.dataTransfer.files[0]; if(f) readImageFile(f);
+    if(e.dataTransfer && e.dataTransfer.files.length) addImages(e.dataTransfer.files);
   });
-  // paste an image directly onto the form
+  // paste image(s) directly onto the form
   $("#tradeForm").addEventListener("paste",function(e){
-    var items=(e.clipboardData||{}).items||[];
+    var items=(e.clipboardData||{}).items||[], imgs=[];
     for(var i=0;i<items.length;i++){
-      if(items[i].type && items[i].type.indexOf("image")===0){
-        var f=items[i].getAsFile(); if(f){ readImageFile(f); e.preventDefault(); break; }
-      }
+      if(items[i].type && items[i].type.indexOf("image")===0){ var f=items[i].getAsFile(); if(f) imgs.push(f); }
     }
+    if(imgs.length){ addImages(imgs); e.preventDefault(); }
   });
 }
 function formTrade(){
@@ -1830,7 +1857,7 @@ function formTrade(){
     session:$("#fld-session").value, setup:$("#fld-setup").value,
     mult:num($("#fld-mult").value)||multFor($("#fld-symbol").value),
     manual:$("#fld-manual").value, emotion:ui.emo, mistakes:ui.mistakes.slice(),
-    rating:ui.rating, shot:$("#fld-shot").value, plan:$("#fld-plan").value, notes:$("#fld-notes").value,
+    rating:ui.rating, shots:(ui.shots||[]).slice(), plan:$("#fld-plan").value, notes:$("#fld-notes").value,
     tags:parseTags($("#fld-tags").value)
   };
 }
@@ -1858,7 +1885,7 @@ function resetForm(){
   $("#fld-symbol").value=state.settings.defaultSymbol;
   $("#fld-mult").value=multFor(state.settings.defaultSymbol);
   ui.emo="";ui.mistakes=[];ui.rating=0; paintTags();
-  setShot("");
+  ui.shots=[]; renderShots();
   $("#formTitle").textContent="Log a trade";
   $("#saveBtn").textContent="Save trade";
   $("#cancelEdit").hidden=true;
@@ -1874,7 +1901,8 @@ function editTrade(id){
   $("#fld-sl").value=t.sl==null?"":t.sl; $("#fld-tp").value=t.tp==null?"":t.tp;
   $("#fld-fees").value=t.fees||0; $("#fld-session").value=t.session||SESSIONS[0];
   $("#fld-setup").value=t.setup||SETUPS[0]; $("#fld-mult").value=t.mult||multFor(t.symbol);
-  $("#fld-manual").value=t.manual||""; setShot(t.shot||"");
+  $("#fld-manual").value=t.manual||"";
+  ui.shots = t.shots ? t.shots.slice() : (t.shot ? [t.shot] : []); renderShots();
   $("#fld-plan").value=t.plan||""; $("#fld-notes").value=t.notes||"";
   $("#fld-tags").value=(t.tags||[]).join(", ");
   ui.emo=t.emotion||""; ui.mistakes=(t.mistakes||[]).slice(); ui.rating=t.rating||0; paintTags();
@@ -1926,7 +1954,7 @@ function sample(){
       mult:DEFAULT_INST[sym], manual:"",
       emotion:EMOTIONS[i%EMOTIONS.length],
       mistakes: win?["Followed the plan"]:[MISTAKES[1+(i%(MISTAKES.length-1))]],
-      rating: win?4:2, shot:"",
+      rating: win?4:2, shots:[],
       tags: [ ["A-setup","B-setup","scalp"][i%3], win?"clean":"forced" ],
       plan: side==="long"?"Bullish structure, retrace into demand.":"Liquidity swept above, waiting for displacement down.",
       notes: win?"Held to target, management was clean.":"Stopped out — entry was early, zone had not reacted yet."
