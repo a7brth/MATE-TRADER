@@ -336,12 +336,11 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
     <div class="brand">
       <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
         <rect x="4" y="4" width="92" height="92" rx="26" fill="#e6b53c"/>
-        <!-- MT monogram (solid, angular) matching the provided artwork -->
-        <g fill="#141414">
-          <!-- angular M: left stem + inner V, right leg cut by the T -->
-          <path d="M22 74 L22 33 L33 33 L47 55 L47 74 L38 74 L38 52 L31 41 L31 74 Z"/>
-          <!-- T: wide top bar joined to the M, with centre stem -->
-          <path d="M44 33 L80 33 L80 44 L67 44 L67 74 L56 74 L56 44 L51 44 L44 33 Z"/>
+        <!-- MT monogram: a full angular M (two legs + centre V) fused with a T -->
+        <g fill="none" stroke="#141414" stroke-width="8" stroke-linejoin="miter" stroke-linecap="butt">
+          <path d="M20 72 L20 32 L35 55 L50 32 L50 72"/>
+          <path d="M50 34 L82 34"/>
+          <path d="M66 34 L66 72"/>
         </g>
       </svg>
       <div>
