@@ -210,13 +210,23 @@ tr.open-row td{background:var(--panel-2)}
 }
 .mobile-nav{display:none}
 
+/* ---------- auth ---------- */
+.authbox{display:flex;flex-direction:column;gap:6px}
+.auth-status{padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel-2);line-height:1.35}
+.modal{position:fixed;inset:0;background:rgba(3,6,12,.66);display:flex;align-items:center;justify-content:center;z-index:120;padding:18px}
+.modal-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);width:100%;max-width:380px;padding:20px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.modal-head h2{font-family:var(--serif);font-weight:400;font-size:24px}
+
 @media (max-width:860px){
   .shell{flex-direction:column}
   .side{position:static;height:auto;width:100%;flex:none;flex-direction:row;align-items:center;gap:10px;padding:12px 14px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}
   .brand{padding:0 8px 0 0}
   .brand-sub{display:none}
-  .side-foot{margin:0 0 0 auto;flex-direction:row;align-items:center}
+  .side-foot{margin:0 0 0 auto;flex-direction:row;align-items:center;gap:8px}
   .acct{display:none}
+  .authbox{flex-direction:row}
+  .auth-status{padding:6px 9px;font-size:11px;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
   .navlink{white-space:nowrap;padding:8px 10px}
   .main{padding:18px 14px 60px}
   h1{font-size:30px}
@@ -251,6 +261,7 @@ tr.open-row td{background:var(--panel-2)}
         <span>Account equity</span>
         <b id="sideEquity">$0</b>
       </div>
+      <div id="authBox" class="authbox"></div>
       <button class="btn btn-sm" id="themeBtn">Switch to light</button>
     </div>
   </aside>
@@ -523,6 +534,69 @@ tr.open-row td{background:var(--panel-2)}
 
 <div class="toast" id="toast" hidden></div>
 
+<!-- Auth modal -->
+<div class="modal" id="authModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="authTitle">Sign in</h2>
+      <button class="btn btn-sm" id="authClose" type="button">✕</button>
+    </div>
+    <p class="dim" style="font-size:12.5px;margin:0 0 14px">Sign in on your phone and your laptop with the same account, and your journal stays in sync automatically.</p>
+    <form id="authForm">
+      <label class="field" style="margin-bottom:12px"><span>Email</span><input class="input" type="email" id="authEmail" autocomplete="email" placeholder="you@example.com" required /></label>
+      <label class="field" style="margin-bottom:6px"><span>Password</span><input class="input" type="password" id="authPass" autocomplete="current-password" placeholder="at least 6 characters" required /></label>
+      <div id="authErr" class="down" style="font-size:12.5px;min-height:18px;margin:6px 0"></div>
+      <button class="btn btn-primary" type="submit" id="authSubmit" style="width:100%">Sign in</button>
+    </form>
+    <button class="btn" id="authToggle" type="button" style="width:100%;margin-top:10px;background:none;border:0;color:var(--gold)">New here? Create an account</button>
+  </div>
+</div>
+
+<!-- Firebase config + sync bridge. Fill in firebaseConfig with YOUR project's values (see README). -->
+<script type="module">
+  // ⬇️ PASTE YOUR FIREBASE CONFIG HERE (from Firebase console → Project settings → Your apps)
+  const firebaseConfig = {
+    apiKey: "PASTE_API_KEY",
+    authDomain: "PASTE_PROJECT.firebaseapp.com",
+    projectId: "PASTE_PROJECT_ID",
+    appId: "PASTE_APP_ID"
+  };
+
+  // Only start Firebase if the config has been filled in.
+  if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_API_KEY") {
+    try {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js");
+      const { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } =
+        await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js");
+      const { getFirestore, doc, setDoc, onSnapshot } =
+        await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const dbf = getFirestore(app);
+
+      // Expose a tiny bridge the main script uses.
+      window.MTsync = {
+        onAuth(cb){ onAuthStateChanged(auth, cb); },
+        signIn(email, pass){ return signInWithEmailAndPassword(auth, email, pass); },
+        signUp(email, pass){ return createUserWithEmailAndPassword(auth, email, pass); },
+        signOut(){ return signOut(auth); },
+        listen(uid, cb){
+          const ref = doc(dbf, "journals", uid);
+          return onSnapshot(ref, (snap) => cb(snap.exists() ? snap.data() : null), () => cb(null));
+        },
+        write(uid, data){
+          return setDoc(doc(dbf, "journals", uid), data, { merge: true });
+        }
+      };
+      // Let the app know Firebase just became available (in case it booted first).
+      if (window.__mtOnFirebaseReady) window.__mtOnFirebaseReady();
+    } catch (e) {
+      console.warn("Firebase failed to load; running offline only.", e);
+    }
+  }
+</script>
+
 <script>
 (function(){
 "use strict";
@@ -665,26 +739,111 @@ function hydrate(data){
   state.settings.instruments=Object.assign({},DEFAULT_INST,(data.settings&&data.settings.instruments)||{});
 }
 var saveTimer=null;
+var cloud = {ready:false, user:null, writing:false, applyingRemote:false};
 function save(){
   lsSave();
+  // Push to Firebase (debounced) when signed in
   clearTimeout(saveTimer);
   saveTimer=setTimeout(function(){
-    if(!dbDoc) return;
-    try{ dbDoc.set({trades:state.trades, settings:state.settings, updated:Date.now()}); }catch(e){}
-  },400);
+    if(!cloud.ready || !cloud.user || !window.MTsync || cloud.applyingRemote) return;
+    cloud.writing=true;
+    Promise.resolve(window.MTsync.write(cloud.user.uid, {
+      trades:state.trades, settings:state.settings, updated:Date.now()
+    })).catch(function(){}).then(function(){ cloud.writing=false; });
+  },500);
 }
+/* Firebase realtime sync — replaces the old sandbox connector. */
 function connect(){
-  if(!window.claude||!window.claude.use) return;
-  Promise.resolve(window.claude.use("db")).then(function(d){
-    if(!d) return;
-    db=d; dbDoc=db.doc("journal/state");
-    return dbDoc.get();
-  }).then(function(snap){
-    var data = snap && (snap.data ? (typeof snap.data==="function"? snap.data(): snap.data) : snap);
-    if(data && Array.isArray(data.trades) && data.trades.length>=state.trades.length){
-      hydrate(data); renderAll(); toast("Synced from your saved journal");
-    } else if(state.trades.length){ save(); }
-  }).catch(function(){});
+  if(!window.MTsync){
+    // Firebase module may still be loading (it's async). Retry when it signals ready.
+    window.__mtOnFirebaseReady = function(){ renderAuthState(); connect(); };
+    return; // until then the app works offline via localStorage
+  }
+  window.MTsync.onAuth(function(user){
+    cloud.ready=true; cloud.user=user;
+    renderAuthState();
+    if(!user){ if(cloud.unsub){cloud.unsub();cloud.unsub=null;} return; }
+    // First load / live updates for this user
+    if(cloud.unsub){cloud.unsub();}
+    cloud.unsub = window.MTsync.listen(user.uid, function(remote){
+      if(!remote){
+        // No cloud copy yet: seed it from whatever is local
+        if(state.trades.length || Object.keys(state.settings.instruments||{}).length){ save(); }
+        return;
+      }
+      // Skip echoes of our own just-written data
+      if(cloud.writing) return;
+      cloud.applyingRemote=true;
+      hydrate(remote);
+      lsSave();
+      renderAll();
+      cloud.applyingRemote=false;
+    });
+  });
+}
+
+/* ============ auth UI ============ */
+function renderAuthState(){
+  var box=$("#authBox"); if(!box) return;
+  if(!window.MTsync){
+    box.innerHTML='<div class="auth-status dim">Cloud sync off<br><span style="font-size:10px">add Firebase config</span></div>';
+    return;
+  }
+  if(cloud.user){
+    var email=cloud.user.email||"account";
+    box.innerHTML='<div class="auth-status"><span class="dim" style="font-size:10px">Synced as</span><br><b style="font-size:11.5px;word-break:break-all">'+esc(email)+'</b></div>'+
+      '<button class="btn btn-sm" id="signOutBtn" style="width:100%">Sign out</button>';
+    $("#signOutBtn").onclick=function(){ window.MTsync.signOut(); toast("Signed out"); };
+  } else {
+    box.innerHTML='<button class="btn btn-sm btn-primary" id="openAuth" style="width:100%">Sign in to sync</button>';
+    $("#openAuth").onclick=openAuthModal;
+  }
+}
+function openAuthModal(){
+  var m=$("#authModal"); if(m) m.hidden=false;
+  var em=$("#authEmail"); if(em) em.focus();
+}
+function closeAuthModal(){ var m=$("#authModal"); if(m) m.hidden=true; }
+function wireAuth(){
+  var mode="signin";
+  var toggle=$("#authToggle"), title=$("#authTitle"), submit=$("#authSubmit"), err=$("#authErr");
+  function setMode(m){
+    mode=m;
+    title.textContent = m==="signin" ? "Sign in" : "Create account";
+    submit.textContent = m==="signin" ? "Sign in" : "Create account";
+    toggle.textContent = m==="signin" ? "New here? Create an account" : "Already have an account? Sign in";
+    err.textContent="";
+  }
+  toggle.onclick=function(){ setMode(mode==="signin"?"signup":"signin"); };
+  $("#authClose").onclick=closeAuthModal;
+  $("#authModal").addEventListener("click",function(e){ if(e.target.id==="authModal") closeAuthModal(); });
+  $("#authForm").addEventListener("submit",function(e){
+    e.preventDefault();
+    err.textContent="";
+    if(!window.MTsync){ err.textContent="Firebase is not configured yet."; return; }
+    var email=$("#authEmail").value.trim(), pass=$("#authPass").value;
+    if(!email||pass.length<6){ err.textContent="Enter an email and a password of at least 6 characters."; return; }
+    submit.disabled=true; submit.textContent="Please wait…";
+    var op = mode==="signin" ? window.MTsync.signIn(email,pass) : window.MTsync.signUp(email,pass);
+    Promise.resolve(op).then(function(){
+      submit.disabled=false; setMode(mode);
+      closeAuthModal();
+      toast(mode==="signin"?"Signed in — syncing…":"Account created — syncing…");
+    }).catch(function(e2){
+      submit.disabled=false; setMode(mode);
+      err.textContent = friendlyAuthError(e2);
+    });
+  });
+}
+function friendlyAuthError(e){
+  var c=(e&&e.code)||"";
+  if(c.indexOf("email-already-in-use")>=0) return "That email already has an account — try signing in.";
+  if(c.indexOf("invalid-email")>=0) return "That email address looks invalid.";
+  if(c.indexOf("weak-password")>=0) return "Password is too weak (use 6+ characters).";
+  if(c.indexOf("wrong-password")>=0||c.indexOf("invalid-credential")>=0) return "Wrong email or password.";
+  if(c.indexOf("user-not-found")>=0) return "No account with that email — create one first.";
+  if(c.indexOf("too-many-requests")>=0) return "Too many attempts — wait a moment and try again.";
+  return "Could not complete that — please try again.";
 }
 
 /* ============ charts ============ */
@@ -1382,11 +1541,12 @@ function boot(){
   }catch(e){}
   $("#themeBtn").textContent = document.documentElement.dataset.theme==="dark" ? "Switch to light" : "Switch to dark";
   var saved=lsLoad(); if(saved) hydrate(saved);
-  tagButtons(); wire(); fillSelects(); resetForm(); renderDD();
+  tagButtons(); wire(); wireAuth(); fillSelects(); resetForm(); renderDD();
   $("#rk-bal").value=state.settings.startBalance;
   $("#rk-pct").value=state.settings.riskPct;
   $("#set-sym").value=state.settings.defaultSymbol;
   renderAll(); renderRisk();
+  renderAuthState();
   connect();
 }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot); else boot();

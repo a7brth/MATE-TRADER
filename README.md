@@ -18,13 +18,43 @@ A full, single-file **trading journal** web app. No build step, no backend, no d
 
 ## How to preview / access it
 
-- **Live site (GitHub Pages):** enable Pages on this repo (Settings → Pages → Branch: `main` → `/root`), then open `https://<your-username>.github.io/trade-journal/`
+- **Live site (GitHub Pages):** enable Pages on this repo (Settings → Pages → Branch: `main` → `/root`), then open `https://a7brth.github.io/MATE-TRADER/`
 - **Open directly:** download `index.html` and open it in any browser — it works fully offline.
+
+## ☁️ Cloud sync across devices (Firebase)
+
+The journal can sync your trades across phone + laptop using a **free Firebase** project. Until you add your config it runs offline (localStorage) exactly as before — nothing breaks.
+
+**One-time setup (~5 minutes):**
+
+1. Go to the [Firebase console](https://console.firebase.google.com) → **Add project** (any name, e.g. `mate-trader`). Google Analytics is optional.
+2. In the project, click the **web icon `</>`** to "Add app". Give it a nickname, click **Register app**. Firebase shows you a `firebaseConfig` object — keep that tab open.
+3. Left menu → **Build → Authentication → Get started** → **Sign-in method** → enable **Email/Password** → Save.
+4. Left menu → **Build → Firestore Database → Create database** → Production mode → pick a location → Enable.
+5. In Firestore → **Rules** tab, paste the rules below and **Publish**:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /journals/{uid} {
+         allow read, write: if request.auth != null && request.auth.uid == uid;
+       }
+     }
+   }
+   ```
+   *(This makes each person's journal private — only the signed-in owner can read/write their own data.)*
+6. Open `index.html`, find the block marked **"PASTE YOUR FIREBASE CONFIG HERE"**, and replace the placeholder values with the ones from step 2 (`apiKey`, `authDomain`, `projectId`, `appId`).
+7. Commit & push. On the live site, click **"Sign in to sync"** in the sidebar → create an account. Do the same on your other device with the **same email/password**, and your trades sync automatically in real time. ✨
+
+**Notes**
+- These Firebase web config values are safe to keep in the code — they are public identifiers, not secrets. Your data is protected by the security rules above.
+- Free tier is generous (plenty for a personal journal).
+- First device to sign in seeds the cloud from its local data; after that every device shows the same journal live.
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `index.html` | The entire app — HTML, CSS, and JS in one self-contained file |
+| `index.html` | The entire app — HTML, CSS, JS, and Firebase sync in one self-contained file |
 
 > Tip: use **Settings → Load sample trades** to see the journal filled in, then **Delete all trades** to start fresh.
