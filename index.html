@@ -356,6 +356,23 @@ tr.open-row td{background:var(--panel-2)}
 
       <div class="panel">
         <div class="panel-head">
+          <h2>Profit composition</h2>
+          <div class="seg" id="dashPieSeg">
+            <button data-pie="setup" class="on">Setup</button>
+            <button data-pie="symbol">Symbol</button>
+            <button data-pie="session">Session</button>
+            <button data-pie="tags">Tag</button>
+          </div>
+        </div>
+        <div class="pie-wrap">
+          <svg id="dashPieChart" viewBox="0 0 220 220" aria-label="Profit composition pie chart"></svg>
+          <div class="pie-legend" id="dashPieLegend"></div>
+        </div>
+        <p class="dim" style="font-size:11.5px;margin:10px 0 0">Share of gross profit by category (winning trades).</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
           <h2>Recent trades</h2>
           <button class="btn btn-sm" data-goto="trades">See all</button>
         </div>
@@ -708,7 +725,7 @@ var KEY = "meridian.journal.v1";
 /* ============ state ============ */
 var state = {trades:[], settings:Object.assign({}, DEFAULTS)};
 var db = null, dbDoc = null;
-var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", pie:"setup", sort:{key:"date",dir:-1},
+var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", pie:"setup", dashPie:"setup", sort:{key:"date",dir:-1},
           openRow:null, calMonth:new Date().getMonth(), calYear:new Date().getFullYear(),
           emo:"", mistakes:[], rating:0, dayFilter:null};
 
@@ -1107,6 +1124,7 @@ function renderDashboard(){
 
   breakdown("#bdSession", group(list,"session"), "pnl");
   breakdown("#bdSetupMini", group(list,"setup").slice(0,6), "pnl");
+  drawPie("#dashPieChart", "#dashPieLegend", ui.dashPie);
   $("#recentHolder").innerHTML = list.length
     ? tableHtml(sorted(list).slice(0,6), false)
     : '<div class="empty"><b>Nothing logged yet</b>Load the sample trades in Settings to see how the journal reads, then start your own.</div>';
@@ -1315,15 +1333,12 @@ function renderAnalytics(){
 
 /* ---- pie / donut chart: share of gross profit by category ---- */
 var PIE_COLORS = ["#e0b341","#3ecf8e","#5b9dff","#c774e8","#ff8f5c","#4fd1c5","#f2c94c","#eb5a8c","#7c9cff","#9ad86b","#d98f5c","#67c9d8"];
-function drawPie(){
-  var svg=$("#pieChart"), legend=$("#pieLegend"); if(!svg) return;
-  var key=ui.pie;
-  // aggregate gross profit from WINNING trades per category (only positive P&L contributes to a share)
-  var rows=group(state.trades, key).map(function(g){
-    // recompute positive-only total for this bucket
-    return g;
-  });
-  // Build positive-profit totals per bucket by re-summing winners
+function drawPie(svgSel, legendSel, key){
+  svgSel=svgSel||"#pieChart"; legendSel=legendSel||"#pieLegend"; key=key||ui.pie;
+  var svg=$(svgSel), legend=$(legendSel); if(!svg) return;
+  var cx=110, cy=110, rO=90, rI=54;
+
+  // Sum gross profit from WINNING trades per category (only positive P&L contributes to a share)
   var totals={};
   state.trades.forEach(function(t){
     var p=calcPnl(t); if(p<=0) return;
@@ -1334,42 +1349,53 @@ function drawPie(){
     .sort(function(a,b){return b.val-a.val});
   var grand=items.reduce(function(a,b){return a+b.val},0);
 
-  if(!items.length||grand<=0){
-    svg.innerHTML='<circle cx="110" cy="110" r="80" fill="none" stroke="var(--line)" stroke-width="20"/>'+
-      '<text x="110" y="115" text-anchor="middle" fill="var(--faint)" font-size="13" font-family="Inter,sans-serif">No winning trades yet</text>';
-    legend.innerHTML=''; return;
+  function centerLabels(){
+    return '<text x="110" y="104" text-anchor="middle" fill="var(--faint)" font-size="10.5" font-family="Inter,sans-serif">gross profit</text>'+
+      '<text x="110" y="123" text-anchor="middle" fill="var(--text)" font-size="16" font-family="IBM Plex Mono,monospace" font-weight="700">'+moneyC(grand)+'</text>';
   }
+
+  if(!items.length||grand<=0){
+    svg.innerHTML='<circle cx="110" cy="110" r="72" fill="none" stroke="var(--line-soft)" stroke-width="36"/>'+
+      '<text x="110" y="115" text-anchor="middle" fill="var(--faint)" font-size="13" font-family="Inter,sans-serif">No winning trades yet</text>';
+    if(legend) legend.innerHTML=''; return;
+  }
+
   // collapse a long tail into "Other"
   var top=items.slice(0,7), rest=items.slice(7);
   if(rest.length){ top.push({name:"Other", val:rest.reduce(function(a,b){return a+b.val},0)}); }
 
-  var cx=110, cy=110, rO=90, rI=54, ang=-Math.PI/2, paths="";
-  top.forEach(function(it,i){
-    var frac=it.val/grand, a2=ang+frac*Math.PI*2;
-    var large=frac>0.5?1:0;
-    var x1=cx+rO*Math.cos(ang), y1=cy+rO*Math.sin(ang);
-    var x2=cx+rO*Math.cos(a2),  y2=cy+rO*Math.sin(a2);
-    var xi2=cx+rI*Math.cos(a2), yi2=cy+rI*Math.sin(a2);
-    var xi1=cx+rI*Math.cos(ang),yi1=cy+rI*Math.sin(ang);
-    var color=PIE_COLORS[i%PIE_COLORS.length];
-    paths+='<path d="M'+x1.toFixed(1)+' '+y1.toFixed(1)+
-      ' A'+rO+' '+rO+' 0 '+large+' 1 '+x2.toFixed(1)+' '+y2.toFixed(1)+
-      ' L'+xi2.toFixed(1)+' '+yi2.toFixed(1)+
-      ' A'+rI+' '+rI+' 0 '+large+' 0 '+xi1.toFixed(1)+' '+yi1.toFixed(1)+
-      ' Z" fill="'+color+'" stroke="var(--panel)" stroke-width="1.5"/>';
-    ang=a2;
-  });
-  // center label = total gross profit
-  paths+='<text x="110" y="104" text-anchor="middle" fill="var(--faint)" font-size="10.5" font-family="Inter,sans-serif">gross profit</text>';
-  paths+='<text x="110" y="122" text-anchor="middle" fill="var(--text)" font-size="16" class="pie-center" font-family="IBM Plex Mono,monospace">'+moneyC(grand)+'</text>';
-  svg.innerHTML=paths;
+  var paths="";
+  if(top.length===1){
+    // Single category = full donut ring (an arc can't draw a 360° slice, so use two stroked circles)
+    paths+='<circle cx="110" cy="110" r="'+((rO+rI)/2)+'" fill="none" stroke="'+PIE_COLORS[0]+'" stroke-width="'+(rO-rI)+'"/>';
+  } else {
+    var ang=-Math.PI/2;
+    top.forEach(function(it,i){
+      var frac=it.val/grand, a2=ang+frac*Math.PI*2;
+      var large=frac>0.5?1:0;
+      var x1=cx+rO*Math.cos(ang), y1=cy+rO*Math.sin(ang);
+      var x2=cx+rO*Math.cos(a2),  y2=cy+rO*Math.sin(a2);
+      var xi2=cx+rI*Math.cos(a2), yi2=cy+rI*Math.sin(a2);
+      var xi1=cx+rI*Math.cos(ang),yi1=cy+rI*Math.sin(ang);
+      var color=PIE_COLORS[i%PIE_COLORS.length];
+      paths+='<path d="M'+x1.toFixed(2)+' '+y1.toFixed(2)+
+        ' A'+rO+' '+rO+' 0 '+large+' 1 '+x2.toFixed(2)+' '+y2.toFixed(2)+
+        ' L'+xi2.toFixed(2)+' '+yi2.toFixed(2)+
+        ' A'+rI+' '+rI+' 0 '+large+' 0 '+xi1.toFixed(2)+' '+yi1.toFixed(2)+
+        ' Z" fill="'+color+'" stroke="var(--panel)" stroke-width="1.5"/>';
+      ang=a2;
+    });
+  }
+  svg.innerHTML=paths+centerLabels();
 
-  legend.innerHTML=top.map(function(it,i){
-    var color=PIE_COLORS[i%PIE_COLORS.length], pct=(it.val/grand*100).toFixed(0);
-    return '<div class="leg"><i style="background:'+color+'"></i>'+
-      '<span class="lname" title="'+esc(it.name)+'">'+esc(it.name)+'</span>'+
-      '<span class="lval">'+pct+'% · '+moneyC(it.val)+'</span></div>';
-  }).join("");
+  if(legend){
+    legend.innerHTML=top.map(function(it,i){
+      var color=PIE_COLORS[i%PIE_COLORS.length], pct=(it.val/grand*100).toFixed(0);
+      return '<div class="leg"><i style="background:'+color+'"></i>'+
+        '<span class="lname" title="'+esc(it.name)+'">'+esc(it.name)+'</span>'+
+        '<span class="lval">'+pct+'% · '+moneyC(it.val)+'</span></div>';
+    }).join("");
+  }
 }
 
 /* ---- monthly report ---- */
@@ -1658,7 +1684,16 @@ function wire(){
       var b=e.target.closest("button"); if(!b) return;
       ui.pie=b.dataset.pie;
       $$("#pieSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
-      drawPie();
+      drawPie("#pieChart","#pieLegend",ui.pie);
+    });
+  }
+  var dashPieSeg=$("#dashPieSeg");
+  if(dashPieSeg){
+    dashPieSeg.addEventListener("click",function(e){
+      var b=e.target.closest("button"); if(!b) return;
+      ui.dashPie=b.dataset.pie;
+      $$("#dashPieSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
+      drawPie("#dashPieChart","#dashPieLegend",ui.dashPie);
     });
   }
   $("#metricSeg").addEventListener("click",function(e){
