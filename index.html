@@ -554,12 +554,15 @@ tr.open-row td{background:var(--panel-2)}
 
 <!-- Firebase config + sync bridge. Fill in firebaseConfig with YOUR project's values (see README). -->
 <script type="module">
-  // ⬇️ PASTE YOUR FIREBASE CONFIG HERE (from Firebase console → Project settings → Your apps)
+  // Firebase project config (public identifiers — safe to ship; data is protected by Firestore rules).
   const firebaseConfig = {
-    apiKey: "PASTE_API_KEY",
-    authDomain: "PASTE_PROJECT.firebaseapp.com",
-    projectId: "PASTE_PROJECT_ID",
-    appId: "PASTE_APP_ID"
+    apiKey: "AIzaSyAld1CGd8iKDP5pxB88uJjJX27h5SpHVOM",
+    authDomain: "mate-trader.firebaseapp.com",
+    projectId: "mate-trader",
+    storageBucket: "mate-trader.firebasestorage.app",
+    messagingSenderId: "687843635848",
+    appId: "1:687843635848:web:2db237ed6f67de3477a53d",
+    measurementId: "G-GSBHCRE2YC"
   };
 
   // Only start Firebase if the config has been filled in.
