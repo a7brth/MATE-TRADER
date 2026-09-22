@@ -51,7 +51,7 @@ a{color:inherit}
 .side::-webkit-scrollbar-track{background:transparent}
 .side{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;flex-shrink:0}
-.brand svg{width:30px;height:30px;flex:0 0 30px}
+.brand svg{width:30px;height:30px;flex:0 0 30px;border-radius:9px;box-shadow:0 1px 3px rgba(0,0,0,.18)}
 .brand-name{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:-.01em;line-height:1}
 .brand-sub{display:block;font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.16em;margin-top:3px}
 .navlink{
@@ -223,6 +223,19 @@ tr.open-row td{background:var(--panel-2)}
 .pie-legend .leg .lval{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 .pie-center{font-family:var(--mono);font-weight:700}
 
+/* ---------- dashboard donut (large, centered) ---------- */
+.dash-pie-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.dash-pie-label{font-size:12.5px;color:var(--muted);letter-spacing:.01em}
+.dash-pie-count{font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.1;margin-top:2px}
+.dash-pie-center{display:flex;justify-content:center;align-items:center;padding:14px 0 6px}
+.dash-pie-center svg{width:290px;height:290px;max-width:100%}
+.dash-pie-legend{display:flex;flex-wrap:wrap;gap:14px 26px;justify-content:center;border-top:1px solid var(--line-soft);padding-top:16px;margin-top:6px}
+.dash-pie-legend .leg{display:flex;align-items:center;gap:8px;font-size:13px}
+.dash-pie-legend .leg i{width:11px;height:11px;border-radius:3px;flex:0 0 11px}
+.dash-pie-legend .leg .lname{color:var(--text)}
+.dash-pie-legend .leg .lval{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+@media (max-width:520px){ .dash-pie-center svg{width:230px;height:230px} }
+
 .toast{
   position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));
   background:var(--panel-2);border:1px solid var(--gold-dim);color:var(--text);padding:10px 18px;
@@ -232,7 +245,8 @@ tr.open-row td{background:var(--panel-2)}
 
 /* ---------- auth ---------- */
 .authbox{display:flex;flex-direction:column;gap:6px}
-.auth-status{padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel-2);line-height:1.35}
+.auth-status{padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel-2);line-height:1.35;overflow:hidden}
+.auth-email{display:block;font-size:11.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .modal{position:fixed;inset:0;background:rgba(3,6,12,.66);display:flex;align-items:center;justify-content:center;z-index:120;padding:18px}
 .modal[hidden]{display:none!important}
 .modal-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);width:100%;max-width:380px;padding:20px}
@@ -279,7 +293,7 @@ tr.open-row td{background:var(--panel-2)}
   <aside class="side">
     <div class="brand">
       <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="2" y="2" width="28" height="28" rx="9" fill="var(--gold)"/>
+        <rect x="2" y="2" width="28" height="28" rx="9" fill="#e6b53c"/>
         <path d="M9 20.5l5-5 3.2 3.2L23 12.5" stroke="#17130a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="23" cy="12.5" r="1.9" fill="#17130a"/>
       </svg>
@@ -354,9 +368,12 @@ tr.open-row td{background:var(--panel-2)}
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Profit composition</h2>
+      <div class="panel dash-pie-panel">
+        <div class="dash-pie-head">
+          <div>
+            <div class="dash-pie-label" id="dashPieLabel">Profit by setup</div>
+            <div class="dash-pie-count" id="dashPieCount">0</div>
+          </div>
           <div class="seg" id="dashPieSeg">
             <button data-pie="setup" class="on">Setup</button>
             <button data-pie="symbol">Symbol</button>
@@ -364,11 +381,10 @@ tr.open-row td{background:var(--panel-2)}
             <button data-pie="tags">Tag</button>
           </div>
         </div>
-        <div class="pie-wrap">
-          <svg id="dashPieChart" viewBox="0 0 220 220" aria-label="Profit composition pie chart"></svg>
-          <div class="pie-legend" id="dashPieLegend"></div>
+        <div class="dash-pie-center">
+          <svg id="dashPieChart" viewBox="0 0 260 260" aria-label="Profit composition donut chart"></svg>
         </div>
-        <p class="dim" style="font-size:11.5px;margin:10px 0 0">Share of gross profit by category (winning trades).</p>
+        <div class="dash-pie-legend" id="dashPieLegend"></div>
       </div>
 
       <div class="panel">
@@ -917,7 +933,8 @@ function renderAuthState(){
   if(cloud.user){
     closeAuthModal(); // if we just signed in, make sure the modal is gone
     var email=cloud.user.email||"account";
-    box.innerHTML='<div class="auth-status"><span class="dim" style="font-size:10px">Synced as</span><br><b style="font-size:11.5px;word-break:break-all">'+esc(email)+'</b></div>'+
+    box.innerHTML='<div class="auth-status"><span class="dim" style="font-size:10px">Synced as</span>'+
+      '<b class="auth-email" title="'+esc(email)+'">'+esc(email)+'</b></div>'+
       '<button class="btn btn-sm" id="signOutBtn" style="width:100%">Sign out</button>';
     $("#signOutBtn").onclick=function(){ window.MTsync.signOut(); toast("Signed out"); };
   } else {
@@ -1113,10 +1130,14 @@ function renderDashboard(){
     ["Profit factor", s.pf===Infinity?"∞":s.pf.toFixed(2), "gross win ÷ gross loss", s.pf>=1.5?"up":(s.pf<1?"down":"")],
     ["Expectancy", money(s.expectancy), "per trade", cls(s.expectancy)],
     ["Average R", s.avgR==null?"—":(s.avgR>0?"+":"")+s.avgR.toFixed(2)+"R", s.rCount+" trades with a stop", s.avgR==null?"":cls(s.avgR)],
-    ["Avg win", money(s.avgWin), "", "up"],
-    ["Avg loss", money(s.avgLoss), "", "down"],
+    ["Total R", s.totalR==null?"—":(s.totalR>0?"+":"")+s.totalR.toFixed(2)+"R", "sum of R multiples", s.totalR==null?"":cls(s.totalR)],
+    ["Avg win", money(s.avgWin), "per winning trade", "up"],
+    ["Avg loss", money(s.avgLoss), "per losing trade", "down"],
+    ["Trades", String(s.n), "in this range", ""],
     ["Max drawdown", money0(-s.maxDD), s.maxDDpct.toFixed(1)+"% from peak", s.maxDD?"down":""],
-    ["Best / worst", money(s.best)+" / "+money(s.worst), "single trades", ""]
+    ["Best day", money(s.best), "single best trade", "up"],
+    ["Worst day", money(s.worst), "single worst trade", "down"],
+    ["Current streak", s.streak?(s.streak+" "+(s.sType==="W"?"wins":"losses")):"—", "in a row", s.streak?(s.sType==="W"?"up":"down"):""]
   ];
   $("#statsGrid").innerHTML=cells.map(function(c){
     return '<div class="stat"><span>'+c[0]+'</span><b class="'+c[3]+'">'+c[1]+'</b><i>'+c[2]+'</i></div>';
@@ -1124,7 +1145,7 @@ function renderDashboard(){
 
   breakdown("#bdSession", group(list,"session"), "pnl");
   breakdown("#bdSetupMini", group(list,"setup").slice(0,6), "pnl");
-  drawPie("#dashPieChart", "#dashPieLegend", ui.dashPie);
+  drawDashPie();
   $("#recentHolder").innerHTML = list.length
     ? tableHtml(sorted(list).slice(0,6), false)
     : '<div class="empty"><b>Nothing logged yet</b>Load the sample trades in Settings to see how the journal reads, then start your own.</div>';
@@ -1394,6 +1415,76 @@ function drawPie(svgSel, legendSel, key){
       return '<div class="leg"><i style="background:'+color+'"></i>'+
         '<span class="lname" title="'+esc(it.name)+'">'+esc(it.name)+'</span>'+
         '<span class="lval">'+pct+'% · '+moneyC(it.val)+'</span></div>';
+    }).join("");
+  }
+}
+
+/* ---- dashboard donut: big centered chart (own design, not shared with Analytics) ---- */
+var PIE_LABELS = {setup:"Profit by setup", symbol:"Profit by symbol", session:"Profit by session", tags:"Profit by tag"};
+function drawDashPie(){
+  var svg=$("#dashPieChart"), legend=$("#dashPieLegend"),
+      labelEl=$("#dashPieLabel"), countEl=$("#dashPieCount");
+  if(!svg) return;
+  var key=ui.dashPie;
+  if(labelEl) labelEl.textContent = PIE_LABELS[key] || "Profit composition";
+
+  var list=inRange(state.trades); // respect the dashboard date range
+  var totals={};
+  list.forEach(function(t){
+    var p=calcPnl(t); if(p<=0) return;
+    var keys=(key==="tags"||key==="mistakes")?(t[key]&&t[key].length?t[key]:["Untagged"]):[t[key]||"Unspecified"];
+    keys.forEach(function(k){ totals[k]=(totals[k]||0)+p; });
+  });
+  var items=Object.keys(totals).map(function(k){return {name:k, val:totals[k]};})
+    .sort(function(a,b){return b.val-a.val});
+  var grand=items.reduce(function(a,b){return a+b.val},0);
+
+  var cx=130, cy=130, rO=112, rI=76;
+  function center(top,bottom){
+    return '<text x="130" y="126" text-anchor="middle" fill="var(--text)" font-size="30" font-family="IBM Plex Mono,monospace" font-weight="700">'+top+'</text>'+
+      '<text x="130" y="150" text-anchor="middle" fill="var(--faint)" font-size="12" font-family="Inter,sans-serif">'+bottom+'</text>';
+  }
+
+  if(countEl) countEl.textContent = items.length; // number of categories that made money
+
+  if(!items.length||grand<=0){
+    svg.innerHTML='<circle cx="130" cy="130" r="94" fill="none" stroke="var(--line-soft)" stroke-width="36"/>'+
+      center("—","no wins yet");
+    if(legend) legend.innerHTML=''; return;
+  }
+
+  var top=items.slice(0,7), rest=items.slice(7);
+  if(rest.length){ top.push({name:"Other", val:rest.reduce(function(a,b){return a+b.val},0)}); }
+
+  var paths="";
+  if(top.length===1){
+    paths+='<circle cx="130" cy="130" r="'+((rO+rI)/2)+'" fill="none" stroke="'+PIE_COLORS[0]+'" stroke-width="'+(rO-rI)+'"/>';
+  } else {
+    var ang=-Math.PI/2, gap=0.018; // small gap between slices like the reference
+    top.forEach(function(it,i){
+      var frac=it.val/grand, a1=ang+gap/2, a2=ang+frac*Math.PI*2-gap/2;
+      var large=(a2-a1)>Math.PI?1:0;
+      var x1=cx+rO*Math.cos(a1), y1=cy+rO*Math.sin(a1);
+      var x2=cx+rO*Math.cos(a2), y2=cy+rO*Math.sin(a2);
+      var xi2=cx+rI*Math.cos(a2),yi2=cy+rI*Math.sin(a2);
+      var xi1=cx+rI*Math.cos(a1),yi1=cy+rI*Math.sin(a1);
+      var color=PIE_COLORS[i%PIE_COLORS.length];
+      paths+='<path d="M'+x1.toFixed(2)+' '+y1.toFixed(2)+
+        ' A'+rO+' '+rO+' 0 '+large+' 1 '+x2.toFixed(2)+' '+y2.toFixed(2)+
+        ' L'+xi2.toFixed(2)+' '+yi2.toFixed(2)+
+        ' A'+rI+' '+rI+' 0 '+large+' 0 '+xi1.toFixed(2)+' '+yi1.toFixed(2)+
+        ' Z" fill="'+color+'"/>';
+      ang+=frac*Math.PI*2;
+    });
+  }
+  svg.innerHTML=paths+center(moneyC(grand),"gross profit");
+
+  if(legend){
+    legend.innerHTML=top.map(function(it,i){
+      var color=PIE_COLORS[i%PIE_COLORS.length], pct=(it.val/grand*100).toFixed(1);
+      return '<div class="leg"><i style="background:'+color+'"></i>'+
+        '<span class="lname">'+esc(it.name)+'</span>'+
+        '<span class="lval">'+moneyC(it.val)+' · '+pct+'%</span></div>';
     }).join("");
   }
 }
@@ -1693,7 +1784,7 @@ function wire(){
       var b=e.target.closest("button"); if(!b) return;
       ui.dashPie=b.dataset.pie;
       $$("#dashPieSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
-      drawPie("#dashPieChart","#dashPieLegend",ui.dashPie);
+      drawDashPie();
     });
   }
   $("#metricSeg").addEventListener("click",function(e){
