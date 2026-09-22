@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Mate Trader — Trading Journal</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect x='6' y='6' width='108' height='108' rx='30' fill='%23e6b53c'/%3E%3Cg fill='none' stroke='%23141414' stroke-width='12' stroke-linejoin='miter'%3E%3Cpath d='M30 84 L30 40 L46 64 L62 40 L62 84'/%3E%3Cpath d='M62 40 L94 40'/%3E%3Cpath d='M84 42 L84 84'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -30,6 +31,9 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+img,svg,canvas{max-width:100%}
+/* keep everything fluid so browser zoom in/out never breaks the layout */
+.main{width:100%}
 body{
   margin:0;min-height:100%;background:var(--ink);color:var(--text);
   font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
@@ -206,6 +210,18 @@ tr.open-row td{background:var(--panel-2)}
 .shot-preview img{max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--line);display:block}
 .shot-remove{position:absolute;top:6px;right:6px;background:rgba(13,16,23,.8);color:#fff;border-color:transparent;padding:3px 8px}
 .shot-remove:hover{background:rgba(232,97,77,.9)}
+/* detail-view screenshot thumbnail + zoom affordance */
+.shot-thumb{position:relative;display:inline-block;max-width:260px;cursor:zoom-in;border-radius:8px;overflow:hidden;border:1px solid var(--line);line-height:0}
+.shot-thumb img{display:block;width:100%;max-height:180px;object-fit:cover}
+.shot-thumb .shot-zoom{position:absolute;top:6px;right:6px;background:rgba(13,16,23,.72);color:#fff;border-radius:6px;padding:2px 7px;font-size:13px;line-height:1.4;opacity:0;transition:opacity .15s ease}
+.shot-thumb:hover .shot-zoom{opacity:1}
+.shot-thumb:hover{border-color:var(--gold-dim)}
+/* lightbox */
+.lightbox{position:fixed;inset:0;background:rgba(3,6,12,.9);display:flex;align-items:center;justify-content:center;z-index:200;padding:30px;cursor:zoom-out;animation:fade .18s ease}
+.lightbox[hidden]{display:none!important}
+.lightbox img{max-width:96vw;max-height:92vh;border-radius:10px;border:1px solid var(--line);box-shadow:var(--shadow)}
+.lightbox-close{position:fixed;top:18px;right:20px;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:15px;cursor:pointer;z-index:201}
+.lightbox-close:hover{border-color:var(--gold)}
 
 /* ---------- calendar ---------- */
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
@@ -334,13 +350,13 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
 <div class="shell">
   <aside class="side">
     <div class="brand">
-      <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
-        <rect x="4" y="4" width="92" height="92" rx="26" fill="#e6b53c"/>
-        <!-- MT monogram: a full angular M (two legs + centre V) fused with a T -->
-        <g fill="none" stroke="#141414" stroke-width="8" stroke-linejoin="miter" stroke-linecap="butt">
-          <path d="M20 72 L20 32 L35 55 L50 32 L50 72"/>
-          <path d="M50 34 L82 34"/>
-          <path d="M66 34 L66 72"/>
+      <svg viewBox="0 0 120 120" fill="none" aria-hidden="true">
+        <rect x="6" y="6" width="108" height="108" rx="30" fill="#e6b53c"/>
+        <!-- MT monogram: bold angular M (two legs + centre V) fused with a T -->
+        <g fill="none" stroke="#141414" stroke-linejoin="miter" stroke-linecap="butt">
+          <path d="M30 84 L30 40 L46 64 L62 40 L62 84" stroke-width="12"/>
+          <path d="M62 40 L94 40" stroke-width="12"/>
+          <path d="M84 42 L84 84" stroke-width="12"/>
         </g>
       </svg>
       <div>
@@ -715,6 +731,12 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
 <div class="toast" id="toast" hidden></div>
 <div class="pie-tip" id="pieTip" hidden></div>
 
+<!-- Image lightbox -->
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lightbox-close" id="lightboxClose" title="Close">✕</button>
+  <img id="lightboxImg" alt="Chart screenshot full size" />
+</div>
+
 <!-- Auth modal -->
 <div class="modal" id="authModal" hidden>
   <div class="modal-card">
@@ -1008,6 +1030,11 @@ function openAuthModal(){
   var m=$("#authModal"); if(m) m.hidden=false;
   var em=$("#authEmail"); if(em) em.focus();
 }
+function openLightbox(src){
+  if(!src) return;
+  var lb=$("#lightbox"); $("#lightboxImg").src=src; lb.hidden=false;
+}
+function closeLightbox(){ var lb=$("#lightbox"); if(lb) lb.hidden=true; }
 function closeAuthModal(){
   var m=$("#authModal"); if(m) m.hidden=true;
   // reset password field back to hidden for next time
@@ -1043,8 +1070,16 @@ function wireAuth(){
     if(e.target.id==="authModal" || e.target.closest("#authClose")) closeAuthModal();
   });
   document.addEventListener("keydown",function(e){
-    if(e.key==="Escape"){ var m=$("#authModal"); if(m && !m.hidden) closeAuthModal(); }
+    if(e.key==="Escape"){
+      var m=$("#authModal"); if(m && !m.hidden) closeAuthModal();
+      var lb=$("#lightbox"); if(lb && !lb.hidden) closeLightbox();
+    }
   });
+  // lightbox: click backdrop or close button to dismiss
+  var lb=$("#lightbox");
+  if(lb){
+    lb.addEventListener("click",function(e){ if(e.target.id==="lightbox"||e.target.id==="lightboxImg"||e.target.closest("#lightboxClose")) closeLightbox(); });
+  }
   $("#authForm").addEventListener("submit",function(e){
     e.preventDefault();
     err.textContent="";
@@ -1321,7 +1356,7 @@ function detailHtml(t, span){
     ((t.tags&&t.tags.length)?'<div style="margin-top:8px">'+t.tags.map(function(tg){return '<span class="chip gold">#'+esc(tg)+'</span>'}).join(" ")+'</div>':'')+
     (t.plan?'<div style="margin-top:12px"><span class="dim" style="font-size:11px">Plan</span><div>'+esc(t.plan)+'</div></div>':'')+
     (t.notes?'<div style="margin-top:10px"><span class="dim" style="font-size:11px">Review</span><div>'+esc(t.notes)+'</div></div>':'')+
-    (t.shot?'<div style="margin-top:12px"><img src="'+esc(t.shot)+'" alt="Chart screenshot" style="max-width:100%;border-radius:8px;border:1px solid var(--line)" loading="lazy"></div>':'')+
+    (t.shot?'<div style="margin-top:12px"><div class="shot-thumb" data-shot="'+esc(t.shot)+'"><img src="'+esc(t.shot)+'" alt="Chart screenshot" loading="lazy"><span class="shot-zoom" title="View full size">⤢</span></div></div>':'')+
     '</td></tr>';
 }
 function renderTrades(){
@@ -1970,6 +2005,8 @@ function wire(){
       }
       return;
     }
+    var thumb=e.target.closest(".shot-thumb");
+    if(thumb){ openLightbox(thumb.dataset.shot); return; }
     var row=e.target.closest(".trow");
     if(row){
       ui.openRow = ui.openRow===row.dataset.id ? null : row.dataset.id;
