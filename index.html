@@ -813,6 +813,8 @@ function renderAuthState(){
   }
 }
 function openAuthModal(){
+  // If already signed in, there is nothing to do — never show the modal.
+  if(cloud.user){ closeAuthModal(); return; }
   var m=$("#authModal"); if(m) m.hidden=false;
   var em=$("#authEmail"); if(em) em.focus();
 }
@@ -846,7 +848,13 @@ function wireAuth(){
     };
   }
   $("#authClose").onclick=closeAuthModal;
-  $("#authModal").addEventListener("click",function(e){ if(e.target.id==="authModal") closeAuthModal(); });
+  // Robust close: click the X, click the dark backdrop, OR press Escape.
+  $("#authModal").addEventListener("click",function(e){
+    if(e.target.id==="authModal" || e.target.closest("#authClose")) closeAuthModal();
+  });
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape"){ var m=$("#authModal"); if(m && !m.hidden) closeAuthModal(); }
+  });
   $("#authForm").addEventListener("submit",function(e){
     e.preventDefault();
     err.textContent="";
@@ -1571,7 +1579,7 @@ function boot(){
   }catch(e){}
   $("#themeBtn").textContent = document.documentElement.dataset.theme==="dark" ? "Switch to light" : "Switch to dark";
   var saved=lsLoad(); if(saved) hydrate(saved);
-  tagButtons(); wire(); wireAuth(); fillSelects(); resetForm(); renderDD();
+  tagButtons(); wire(); wireAuth(); closeAuthModal(); fillSelects(); resetForm(); renderDD();
   $("#rk-bal").value=state.settings.startBalance;
   $("#rk-pct").value=state.settings.riskPct;
   $("#set-sym").value=state.settings.defaultSymbol;
