@@ -217,6 +217,10 @@ tr.open-row td{background:var(--panel-2)}
 .modal-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);width:100%;max-width:380px;padding:20px}
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .modal-head h2{font-family:var(--serif);font-weight:400;font-size:24px}
+.pass-wrap{position:relative;display:block}
+.pass-wrap .input{padding-right:62px}
+.pass-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--gold);cursor:pointer;font-size:12px;font-weight:600;padding:6px 8px;border-radius:6px}
+.pass-toggle:hover{background:color-mix(in srgb,var(--gold) 14%,transparent)}
 
 @media (max-width:860px){
   .shell{flex-direction:column}
@@ -544,7 +548,12 @@ tr.open-row td{background:var(--panel-2)}
     <p class="dim" style="font-size:12.5px;margin:0 0 14px">Sign in on your phone and your laptop with the same account, and your journal stays in sync automatically.</p>
     <form id="authForm">
       <label class="field" style="margin-bottom:12px"><span>Email</span><input class="input" type="email" id="authEmail" autocomplete="email" placeholder="you@example.com" required /></label>
-      <label class="field" style="margin-bottom:6px"><span>Password</span><input class="input" type="password" id="authPass" autocomplete="current-password" placeholder="at least 6 characters" required /></label>
+      <label class="field" style="margin-bottom:6px"><span>Password</span>
+        <span class="pass-wrap">
+          <input class="input" type="password" id="authPass" autocomplete="current-password" placeholder="at least 6 characters" required />
+          <button type="button" class="pass-toggle" id="authPassToggle" aria-label="Show password">Show</button>
+        </span>
+      </label>
       <div id="authErr" class="down" style="font-size:12.5px;min-height:18px;margin:6px 0"></div>
       <button class="btn btn-primary" type="submit" id="authSubmit" style="width:100%">Sign in</button>
     </form>
@@ -793,6 +802,7 @@ function renderAuthState(){
     return;
   }
   if(cloud.user){
+    closeAuthModal(); // if we just signed in, make sure the modal is gone
     var email=cloud.user.email||"account";
     box.innerHTML='<div class="auth-status"><span class="dim" style="font-size:10px">Synced as</span><br><b style="font-size:11.5px;word-break:break-all">'+esc(email)+'</b></div>'+
       '<button class="btn btn-sm" id="signOutBtn" style="width:100%">Sign out</button>';
@@ -806,7 +816,13 @@ function openAuthModal(){
   var m=$("#authModal"); if(m) m.hidden=false;
   var em=$("#authEmail"); if(em) em.focus();
 }
-function closeAuthModal(){ var m=$("#authModal"); if(m) m.hidden=true; }
+function closeAuthModal(){
+  var m=$("#authModal"); if(m) m.hidden=true;
+  // reset password field back to hidden for next time
+  var p=$("#authPass"); if(p) p.type="password";
+  var pt=$("#authPassToggle"); if(pt){ pt.textContent="Show"; pt.setAttribute("aria-label","Show password"); }
+  var err=$("#authErr"); if(err) err.textContent="";
+}
 function wireAuth(){
   var mode="signin";
   var toggle=$("#authToggle"), title=$("#authTitle"), submit=$("#authSubmit"), err=$("#authErr");
@@ -818,6 +834,17 @@ function wireAuth(){
     err.textContent="";
   }
   toggle.onclick=function(){ setMode(mode==="signin"?"signup":"signin"); };
+  var passToggle=$("#authPassToggle");
+  if(passToggle){
+    passToggle.onclick=function(){
+      var p=$("#authPass");
+      var show = p.type==="password";
+      p.type = show ? "text" : "password";
+      passToggle.textContent = show ? "Hide" : "Show";
+      passToggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      p.focus();
+    };
+  }
   $("#authClose").onclick=closeAuthModal;
   $("#authModal").addEventListener("click",function(e){ if(e.target.id==="authModal") closeAuthModal(); });
   $("#authForm").addEventListener("submit",function(e){
