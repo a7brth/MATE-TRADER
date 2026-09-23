@@ -712,6 +712,16 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
         </div>
       </div>
       <div class="panel">
+        <div class="panel-head"><h2>Import from MetaTrader 5</h2></div>
+        <p class="dim" style="font-size:13px;margin-top:0;line-height:1.5">In MT5 open the <b>History</b> tab (Toolbox) → right-click → <b>Report</b> → save as <b>HTML</b> or <b>XLSX</b>. Then choose that file below and your closed trades import automatically — no typing.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" id="mt5Btn">Choose MT5 report…</button>
+          <input type="file" id="mt5File" accept=".html,.htm,.xlsx,.csv,text/html,text/csv" hidden />
+          <span class="dim" id="mt5Status" style="font-size:12.5px"></span>
+        </div>
+        <div id="mt5Preview" style="margin-top:14px"></div>
+      </div>
+      <div class="panel">
         <div class="panel-head"><h2>Your data</h2></div>
         <p class="dim" style="font-size:13px;margin-top:0">Saved automatically in this browser.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1963,6 +1973,175 @@ function sample(){
   return out;
 }
 
+/* ============ MetaTrader 5 import ============ */
+// Normalise a header cell label for matching
+function mtNorm(s){ return String(s||"").toLowerCase().replace(/[^a-z]/g,""); }
+function mtNumber(s){
+  if(s==null) return 0;
+  // MT5 numbers may use spaces as thousands separators and a dot decimal
+  var v=String(s).replace(/\s|\u00a0/g,"").replace(/,/g, "");
+  var n=parseFloat(v); return isFinite(n)?n:0;
+}
+function mtDate(s){
+  // MT5 time like "2026.09.20 14:30:15" -> {date:"2026-09-20", time:"14:30"}
+  var m=String(s||"").match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})\s+(\d{2}):(\d{2})/);
+  if(m) return { date:m[1]+"-"+m[2]+"-"+m[3], time:m[4]+":"+m[5] };
+  var d2=String(s||"").match(/(\d{4})[.\-\/](\d{2})[.\-\/](\d{2})/);
+  if(d2) return { date:d2[1]+"-"+d2[2]+"-"+d2[3], time:"" };
+  return { date:"", time:"" };
+}
+// Parse an MT5 HTML report. Returns array of trade objects.
+function parseMT5Html(html){
+  var doc=new DOMParser().parseFromString(html, "text/html");
+  var tables=Array.prototype.slice.call(doc.querySelectorAll("table"));
+  var out=[];
+  tables.forEach(function(tbl){
+    var rows=Array.prototype.slice.call(tbl.querySelectorAll("tr"));
+    // find a header row that looks like the Positions/Deals table
+    var headerIdx=-1, cols=null;
+    for(var i=0;i<rows.length;i++){
+      var cells=Array.prototype.slice.call(rows[i].querySelectorAll("th,td")).map(function(c){return mtNorm(c.textContent);});
+      var joined=cells.join("|");
+      if(joined.indexOf("symbol")>=0 && joined.indexOf("type")>=0 && (joined.indexOf("volume")>=0||joined.indexOf("size")>=0) && joined.indexOf("profit")>=0){
+        headerIdx=i; cols=cells; break;
+      }
+    }
+    if(headerIdx<0) return;
+    // map column positions (MT5 Positions table repeats Time & Price for open/close)
+    function idxAll(names){ var r=[]; cols.forEach(function(c,j){ if(names.indexOf(c)>=0) r.push(j); }); return r; }
+    var timeCols=idxAll(["time","opentime","closetime"]);
+    var priceCols=idxAll(["price","openprice","closeprice"]);
+    var iSymbol=cols.indexOf("symbol");
+    var iType=cols.indexOf("type");
+    var iVol=(cols.indexOf("volume")>=0?cols.indexOf("volume"):cols.indexOf("size"));
+    var iSL=cols.indexOf("sl");
+    var iTP=cols.indexOf("tp");
+    var iComm=cols.indexOf("commission");
+    var iSwap=cols.indexOf("swap");
+    var iProfit=cols.indexOf("profit");
+    var iPos=(cols.indexOf("position")>=0?cols.indexOf("position"):cols.indexOf("deal"));
+
+    for(var r=headerIdx+1;r<rows.length;r++){
+      var tds=Array.prototype.slice.call(rows[r].querySelectorAll("td"));
+      if(tds.length<cols.length-1) continue; // skip summary / spacer rows
+      var txt=function(j){ return j>=0 && tds[j] ? tds[j].textContent.trim() : ""; };
+      var typeRaw=mtNorm(txt(iType));
+      if(typeRaw!=="buy" && typeRaw!=="sell") continue; // only real position rows
+      var openT=mtDate(txt(timeCols[0]));
+      var closeT=timeCols.length>1?mtDate(txt(timeCols[timeCols.length-1])):openT;
+      var entry=priceCols.length?mtNumber(txt(priceCols[0])):0;
+      var exit=priceCols.length>1?mtNumber(txt(priceCols[priceCols.length-1])):entry;
+      var comm=iComm>=0?mtNumber(txt(iComm)):0;
+      var swap=iSwap>=0?mtNumber(txt(iSwap)):0;
+      var profit=iProfit>=0?mtNumber(txt(iProfit)):0;
+      var sym=txt(iSymbol).toUpperCase();
+      if(!sym) continue;
+      out.push({
+        id:"mt5_"+(txt(iPos)||(openT.date+sym+txt(iVol)+r)),
+        _mtKey:(txt(iPos)||(openT.date+"|"+sym+"|"+txt(iVol)+"|"+entry+"|"+exit)),
+        date:closeT.date||openT.date, time:closeT.time||openT.time,
+        symbol:sym, side: typeRaw==="sell"?"short":"long",
+        lots:mtNumber(txt(iVol)), entry:entry, exit:exit,
+        sl:iSL>=0&&txt(iSL)?mtNumber(txt(iSL)):null,
+        tp:iTP>=0&&txt(iTP)?mtNumber(txt(iTP)):null,
+        fees: Math.abs(comm)+Math.abs(swap), // commission + swap, stored positive
+        session:"", setup:"", mult:multFor(sym),
+        manual:String(profit), // use broker's exact P&L as override so numbers match MT5
+        emotion:"", mistakes:[], rating:0, shots:[],
+        tags:["MT5 import"], plan:"", notes:"Imported from MetaTrader 5"
+      });
+    }
+  });
+  return out;
+}
+// Parse an MT5 CSV export (semicolon or comma separated, with a header row).
+function parseMT5Csv(text){
+  var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length<2) return [];
+  var delim = (lines[0].split(";").length > lines[0].split(",").length) ? ";" : ",";
+  var split=function(l){ return l.split(delim).map(function(c){return c.replace(/^"|"$/g,"").trim();}); };
+  var cols=split(lines[0]).map(mtNorm);
+  var iSymbol=cols.indexOf("symbol"), iType=cols.indexOf("type");
+  var iVol=(cols.indexOf("volume")>=0?cols.indexOf("volume"):cols.indexOf("size"));
+  var iProfit=cols.indexOf("profit"), iComm=cols.indexOf("commission"), iSwap=cols.indexOf("swap");
+  var iSL=cols.indexOf("sl"), iTP=cols.indexOf("tp");
+  var timeCols=[]; cols.forEach(function(c,j){ if(c.indexOf("time")>=0) timeCols.push(j); });
+  var priceCols=[]; cols.forEach(function(c,j){ if(c==="price"||c==="openprice"||c==="closeprice") priceCols.push(j); });
+  if(iSymbol<0||iType<0) return [];
+  var out=[];
+  for(var i=1;i<lines.length;i++){
+    var t=split(lines[i]);
+    var typeRaw=mtNorm(t[iType]||"");
+    if(typeRaw!=="buy"&&typeRaw!=="sell") continue;
+    var openT=mtDate(t[timeCols[0]]||""), closeT=timeCols.length>1?mtDate(t[timeCols[timeCols.length-1]]||""):openT;
+    var entry=priceCols.length?mtNumber(t[priceCols[0]]):0;
+    var exit=priceCols.length>1?mtNumber(t[priceCols[priceCols.length-1]]):entry;
+    var comm=iComm>=0?mtNumber(t[iComm]):0, swap=iSwap>=0?mtNumber(t[iSwap]):0;
+    var profit=iProfit>=0?mtNumber(t[iProfit]):0;
+    var sym=(t[iSymbol]||"").toUpperCase(); if(!sym) continue;
+    out.push({
+      id:"mt5_"+(openT.date+sym+i), _mtKey:(openT.date+"|"+sym+"|"+(t[iVol]||"")+"|"+entry+"|"+exit),
+      date:closeT.date||openT.date, time:closeT.time||openT.time,
+      symbol:sym, side:typeRaw==="sell"?"short":"long", lots:mtNumber(t[iVol]),
+      entry:entry, exit:exit, sl:iSL>=0&&t[iSL]?mtNumber(t[iSL]):null, tp:iTP>=0&&t[iTP]?mtNumber(t[iTP]):null,
+      fees:Math.abs(comm)+Math.abs(swap), session:"", setup:"", mult:multFor(sym),
+      manual:String(profit), emotion:"", mistakes:[], rating:0, shots:[],
+      tags:["MT5 import"], plan:"", notes:"Imported from MetaTrader 5"
+    });
+  }
+  return out;
+}
+function importMT5(file){
+  var name=(file.name||"").toLowerCase();
+  var status=$("#mt5Status");
+  status.textContent="Reading "+file.name+"…"; status.className="dim";
+  var rd=new FileReader();
+  rd.onload=function(){
+    var parsed=[];
+    try{
+      if(/\.csv$/.test(name)) parsed=parseMT5Csv(rd.result);
+      else parsed=parseMT5Html(rd.result); // html/htm (and many xlsx-as-html exports)
+    }catch(e){ parsed=[]; }
+    if(!parsed.length){
+      status.textContent=""; 
+      $("#mt5Preview").innerHTML='<div class="empty" style="padding:20px"><b>Couldn\u2019t read that file</b>Make sure it is an MT5 <b>Report</b> saved as <b>HTML</b> or <b>CSV</b> (History tab → right-click → Report). XLSX files: in MT5 choose \u201cOpen HTML\u201d instead, or send me the file and I\u2019ll adjust the importer.</div>';
+      return;
+    }
+    // dedupe against existing (by MT5 key) and against each other
+    var existingKeys={}; state.trades.forEach(function(t){ if(t._mtKey) existingKeys[t._mtKey]=1; });
+    var fresh=[], seen={};
+    parsed.forEach(function(t){
+      if(existingKeys[t._mtKey] || seen[t._mtKey]) return;
+      seen[t._mtKey]=1; fresh.push(t);
+    });
+    mt5Pending=fresh;
+    var net=fresh.reduce(function(a,t){return a+calcPnl(t)},0);
+    var dupN=parsed.length-fresh.length;
+    status.textContent=parsed.length+" trades found"+(dupN?(" · "+dupN+" already imported"):"");
+    status.className="";
+    $("#mt5Preview").innerHTML =
+      '<div class="panel" style="background:var(--panel-2);margin:0 0 12px">'+
+        '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center">'+
+          '<div><b style="font-family:var(--serif);font-size:18px">'+fresh.length+' new trade'+(fresh.length!==1?"s":"")+'</b>'+
+          '<div class="dim" style="font-size:12px">net '+money(net)+(dupN?(" · "+dupN+" skipped as duplicates"):"")+'</div></div>'+
+          (fresh.length?'<button class="btn btn-primary" id="mt5Confirm">Import '+fresh.length+' trade'+(fresh.length!==1?"s":"")+'</button>':'')+
+        '</div>'+
+      '</div>'+
+      (fresh.length?tableHtml(sorted(fresh).slice(0,8), true):"")+
+      (fresh.length>8?'<p class="dim" style="font-size:12px;text-align:center">…and '+(fresh.length-8)+' more</p>':'');
+    var cbtn=$("#mt5Confirm");
+    if(cbtn) cbtn.addEventListener("click",function(){
+      state.trades=state.trades.concat(mt5Pending);
+      save(); renderAll();
+      toast("Imported "+mt5Pending.length+" trades from MT5");
+      $("#mt5Preview").innerHTML=""; $("#mt5Status").textContent="";
+      mt5Pending=[]; go("trades");
+    });
+  };
+  rd.readAsText(file);
+}
+var mt5Pending=[];
+
 /* ============ wiring ============ */
 function wire(){
   $$(".navlink").forEach(function(a){a.addEventListener("click",function(){go(a.dataset.view)})});
@@ -2112,6 +2291,11 @@ function wire(){
     }));
     downloadFile("mate-trader-trades.csv", rows.join("\n"), "text/csv");
   });
+  var mt5Btn=$("#mt5Btn");
+  if(mt5Btn){
+    mt5Btn.addEventListener("click",function(){$("#mt5File").click()});
+    $("#mt5File").addEventListener("change",function(e){ if(e.target.files[0]) importMT5(e.target.files[0]); e.target.value=""; });
+  }
   $("#importBtn").addEventListener("click",function(){$("#importFile").click()});
   $("#importFile").addEventListener("change",function(e){
     var f=e.target.files[0]; if(!f) return;
