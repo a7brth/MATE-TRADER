@@ -51,6 +51,17 @@ The journal can sync your trades across phone + laptop using a **free Firebase**
 - Free tier is generous (plenty for a personal journal).
 - First device to sign in seeds the cloud from its local data; after that every device shows the same journal live.
 
+## Import from MetaTrader 5
+
+You can bring your MT5 history in without typing anything:
+
+1. In **MT5**, open the **History** tab (Toolbox at the bottom).
+2. **Right-click** anywhere in it → **Report** → save as **HTML**.
+3. In Mate Trader → **Settings → Import from MetaTrader 5 → Choose MT5 report…** and pick that file.
+4. Review the preview, then click **Import** — all your closed trades appear with the exact broker P&L, symbol, side, lots, entry/exit, and fees (commission + swap).
+
+Re-importing the same/updated report later is safe — trades already imported are automatically skipped (deduped by MT5 position id). This is a **manual pull** (not live streaming): export + import again whenever you want the latest trades. CSV history exports are also supported.
+
 ## Files
 
 | File | Purpose |
