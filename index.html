@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Mate Trader — Trading Journal</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect x='6' y='6' width='108' height='108' rx='30' fill='%23e6b53c'/%3E%3Cg fill='none' stroke='%23141414' stroke-width='12' stroke-linejoin='miter'%3E%3Cpath d='M30 84 L30 40 L46 64 L62 40 L62 84'/%3E%3Cpath d='M62 40 L94 40'/%3E%3Cpath d='M84 42 L84 84'/%3E%3C/g%3E%3C/svg%3E" />
+<!-- PWA: installable app on phones -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#0d1017" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Mate Trader" />
+<link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;450;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -2514,6 +2522,13 @@ function wireSetup(){
   });
 }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot); else boot();
+
+/* Register the service worker so Mate Trader is installable + works offline */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){ /* offline install unavailable */ });
+  });
+}
 })();
 </script>
 </body>
