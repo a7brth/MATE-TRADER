@@ -127,14 +127,20 @@ h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.01em}
 }
 .hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
 .netpnl{font-family:var(--mono);font-size:44px;font-weight:600;line-height:1;letter-spacing:-.02em}
-.netrow{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
-.heroeq{display:flex;flex-direction:column;gap:2px;padding-bottom:3px}
+.hero-right{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.heroeq{display:flex;flex-direction:column;gap:2px;align-items:flex-end;text-align:right}
 .heroeq-label{font-size:11.5px;color:var(--muted)}
 .heroeq-val{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
 .netlabel{font-size:12px;color:var(--muted);margin-bottom:7px}
 .netmeta{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
-.chart-wrap{position:relative;margin-top:14px}
+.chart-wrap{position:relative;margin-top:0}
 .chart-wrap svg{display:block;width:100%;height:auto}
+/* chart with axes */
+.chart-outer{display:flex;gap:8px;margin-top:14px}
+.chart-yaxis{flex:0 0 auto;display:flex;flex-direction:column;justify-content:space-between;padding:16px 0 24px;font-family:var(--mono);font-size:10.5px;color:var(--faint);text-align:right;min-width:52px}
+.chart-plot{flex:1;min-width:0}
+.chart-xaxis{display:flex;justify-content:space-between;margin-top:4px;font-family:var(--mono);font-size:10.5px;color:var(--faint);overflow:hidden}
+.chart-xaxis span{white-space:nowrap}
 .tip{
   position:absolute;pointer-events:none;background:var(--panel-2);border:1px solid var(--line);
   border-radius:8px;padding:7px 10px;font-size:12px;box-shadow:var(--shadow);opacity:0;transition:opacity .12s;white-space:nowrap;z-index:5;
@@ -334,8 +340,11 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
   .main{padding:18px 14px 60px}
   h1{font-size:26px}
   .netpnl{font-size:34px}
-  .netrow{gap:12px}
   .heroeq-val{font-size:18px}
+  .hero-top{gap:12px}
+  .hero-right{align-items:flex-start;flex-direction:row;justify-content:space-between;width:100%;flex-wrap:wrap}
+  .chart-yaxis{min-width:44px;font-size:9.5px}
+  .chart-xaxis{font-size:9px}
   /* calendar: keep cells inside the viewport on phones */
   .panel{padding:14px}
   .cal{gap:4px}
@@ -399,10 +408,12 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
           <p id="dashSub">Everything you have logged, measured in money and in R.</p>
         </div>
         <div class="seg" id="rangeSeg">
-          <button data-range="30" class="on">30d</button>
-          <button data-range="90">90d</button>
-          <button data-range="365">1y</button>
-          <button data-range="all">All</button>
+          <button data-range="7">1W</button>
+          <button data-range="30">1M</button>
+          <button data-range="90">3M</button>
+          <button data-range="180">6M</button>
+          <button data-range="365">1Y</button>
+          <button data-range="all" class="on">ALL</button>
         </div>
       </div>
 
@@ -410,24 +421,30 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
         <div class="hero-top">
           <div>
             <div class="netlabel">Net profit &amp; loss</div>
-            <div class="netrow">
-              <div class="netpnl" id="heroPnl">$0.00</div>
-              <div class="heroeq">
-                <span class="heroeq-label">Account equity</span>
-                <b class="heroeq-val" id="heroEquity">$0</b>
-              </div>
-            </div>
+            <div class="netpnl" id="heroPnl">$0.00</div>
             <div class="netmeta" id="heroMeta"></div>
           </div>
-          <div class="seg" id="chartSeg">
-            <button data-chart="equity" class="on">Equity</button>
-            <button data-chart="daily">Daily</button>
-            <button data-chart="dd">Drawdown</button>
+          <div class="hero-right">
+            <div class="heroeq">
+              <span class="heroeq-label">Account equity</span>
+              <b class="heroeq-val" id="heroEquity">$0</b>
+            </div>
+            <div class="seg" id="chartSeg">
+              <button data-chart="equity" class="on">Equity</button>
+              <button data-chart="daily">Daily</button>
+              <button data-chart="dd">Drawdown</button>
+            </div>
           </div>
         </div>
-        <div class="chart-wrap" id="chartWrap">
-          <svg id="mainChart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg>
-          <div class="tip" id="chartTip"></div>
+        <div class="chart-outer">
+          <div class="chart-yaxis" id="chartYAxis"></div>
+          <div class="chart-plot">
+            <div class="chart-wrap" id="chartWrap">
+              <svg id="mainChart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg>
+              <div class="tip" id="chartTip"></div>
+            </div>
+            <div class="chart-xaxis" id="chartXAxis"></div>
+          </div>
         </div>
       </div>
 
@@ -858,7 +875,7 @@ var KEY = "meridian.journal.v1";
 /* ============ state ============ */
 var state = {trades:[], settings:Object.assign({}, DEFAULTS)};
 var db = null, dbDoc = null;
-var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", pie:"setup", dashPie:"setup", sort:{key:"date",dir:-1},
+var ui = {view:"dashboard", range:"all", chart:"equity", metric:"pnl", pie:"setup", dashPie:"setup", sort:{key:"date",dir:-1},
           openRow:null, calMonth:new Date().getMonth(), calYear:new Date().getFullYear(),
           emo:"", mistakes:[], rating:0, shots:[], dayFilter:null};
 
@@ -1167,6 +1184,7 @@ function drawChart(list){
     grid+='<line x1="'+pad.l+'" y1="'+y+'" x2="'+(W-pad.r)+'" y2="'+y+'" stroke="var(--line-soft)" stroke-width="1"/>';
   }
   if(ui.chart==="daily"){
+    clearAxes();
     var d=dailySeries(list);
     if(!d.length){svg.innerHTML=emptyChart();return}
     var max=Math.max.apply(null,d.map(function(x){return Math.abs(x.pnl)}))||1;
@@ -1185,10 +1203,13 @@ function drawChart(list){
     svg._crossTop=pad.t; svg._crossBot=H-pad.b;
   } else {
     var pts=buildSeries(list);
-    if(!pts.length){svg.innerHTML=emptyChart();return}
+    if(!pts.length){clearAxes();svg.innerHTML=emptyChart();return}
     var vals=pts.map(function(p){return ui.chart==="dd"?p.dd:p.eq});
     var min=Math.min.apply(null,vals), max=Math.max.apply(null,vals);
     if(ui.chart==="dd"){max=0; min=Math.min(min,-0.5)} else {var padv=(max-min)*.12||1; max+=padv; min-=padv}
+    // axis labels (equity/drawdown views only)
+    renderYAxis(min, max, ui.chart==="dd");
+    renderXAxis(pts);
     var sx=function(i){return pad.l+(W-pad.l-pad.r)*(pts.length===1?.5:i/(pts.length-1))};
     var sy=function(v){return pad.t+(H-pad.t-pad.b)*(1-(v-min)/((max-min)||1))};
     var line="", area="";
@@ -1219,6 +1240,49 @@ function drawChart(list){
 }
 function emptyChart(){
   return '<text x="450" y="130" text-anchor="middle" fill="var(--faint)" font-size="15" font-family="Inter Tight,sans-serif">Log a trade and your curve starts here</text>';
+}
+function clearAxes(){
+  var y=$("#chartYAxis"), x=$("#chartXAxis"); if(y) y.innerHTML=""; if(x) x.innerHTML="";
+}
+// "nice" step so labels land on round numbers (…,100,200,500,1000…)
+function niceStep(range, targetTicks){
+  var raw=range/Math.max(1,targetTicks);
+  var mag=Math.pow(10,Math.floor(Math.log(raw)/Math.LN10));
+  var norm=raw/mag;
+  var step = norm<1.5?1 : norm<3?2 : norm<7?5 : 10;
+  return step*mag;
+}
+// Y axis: round equity labels from bottom to top (e.g. 4900,5000,5100…)
+function renderYAxis(minV, maxV, isPct){
+  var el=$("#chartYAxis"); if(!el) return;
+  if(minV===maxV){ maxV=minV+1; }
+  var step=niceStep(maxV-minV, 4);
+  var start=Math.ceil(minV/step)*step;
+  var ticks=[];
+  for(var v=start; v<=maxV+1e-6 && ticks.length<9; v+=step) ticks.push(v);
+  if(!ticks.length) ticks=[minV,maxV];
+  // top-to-bottom order for the column
+  ticks.reverse();
+  el.innerHTML=ticks.map(function(v){
+    return '<span>'+(isPct ? (v>=0?"":"")+v.toFixed(1)+"%" : money0(v))+'</span>';
+  }).join("");
+}
+// X axis: month + year labels only (no day), spread across the series
+function renderXAxis(chronList){
+  var el=$("#chartXAxis"); if(!el) return;
+  if(!chronList.length){ el.innerHTML=""; return; }
+  var fmtMonth=function(dstr){
+    var d=new Date(dstr+"T00:00:00"); if(isNaN(d)) return "";
+    return d.toLocaleDateString(undefined,{month:"short",year:"numeric"});
+  };
+  // pick up to 6 evenly-spaced points; label unique month/year
+  var labels=[], n=chronList.length, count=Math.min(6, n);
+  for(var i=0;i<count;i++){
+    var idx=count===1?0:Math.round(i*(n-1)/(count-1));
+    labels.push(fmtMonth(chronList[idx].date));
+  }
+  // de-dup consecutive identical labels (keep spacing by using spans)
+  el.innerHTML=labels.map(function(l){return '<span>'+esc(l)+'</span>';}).join("");
 }
 function wireChartHover(){
   var wrap=$("#chartWrap"), svg=$("#mainChart"), tip=$("#chartTip");
