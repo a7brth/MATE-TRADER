@@ -133,7 +133,7 @@ h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.01em}
 .heroeq-val{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
 .netlabel{font-size:12px;color:var(--muted);margin-bottom:7px}
 .netmeta{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
-.chart-wrap{position:relative;margin-top:0}
+.chart-wrap{position:relative;margin-top:0;touch-action:pan-y}
 .chart-wrap svg{display:block;width:100%;height:auto}
 /* chart with axes */
 .chart-outer{margin-top:14px}
@@ -1306,11 +1306,11 @@ function renderXAxis(chronList){
 }
 function wireChartHover(){
   var wrap=$("#chartWrap"), svg=$("#mainChart"), tip=$("#chartTip");
-  wrap.addEventListener("mousemove",function(e){
+  function showTipAt(clientX){
     var tips=svg._tips;
-    if(!tips||!tips.length){tip.classList.remove("on");return}
+    if(!tips||!tips.length){tip.classList.remove("on");return;}
     var rect=svg.getBoundingClientRect();
-    var rel=(e.clientX-rect.left)/rect.width*svg._W;
+    var rel=(clientX-rect.left)/rect.width*svg._W;
     var best=0,bd=1e9;
     tips.forEach(function(t,i){var d=Math.abs(t.x-rel); if(d<bd){bd=d;best=i}});
     var t=tips[best];
@@ -1319,17 +1319,26 @@ function wireChartHover(){
     var px=t.x/svg._W*rect.width;
     tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,px-tip.offsetWidth/2))+"px";
     tip.style.top="6px";
-    // vertical dashed crosshair + dot following the point
     var cross=document.getElementById("chartCross");
     if(cross){ cross.setAttribute("x1",t.x); cross.setAttribute("x2",t.x); cross.setAttribute("opacity","1"); }
     var dot=document.getElementById("chartDot");
     if(dot && t.y!=null){ dot.setAttribute("cx",t.x); dot.setAttribute("cy",t.y); dot.setAttribute("opacity","1"); }
-  });
-  wrap.addEventListener("mouseleave",function(){
+  }
+  function hideTip(){
     tip.classList.remove("on");
     var cross=document.getElementById("chartCross"); if(cross) cross.setAttribute("opacity","0");
     var dot=document.getElementById("chartDot"); if(dot) dot.setAttribute("opacity","0");
-  });
+  }
+  // Desktop: mouse
+  wrap.addEventListener("mousemove",function(e){ showTipAt(e.clientX); });
+  wrap.addEventListener("mouseleave",hideTip);
+  // Mobile: touch — drag your finger along the chart to scrub the tooltip
+  wrap.addEventListener("touchstart",function(e){ if(e.touches[0]) showTipAt(e.touches[0].clientX); },{passive:true});
+  wrap.addEventListener("touchmove",function(e){
+    if(e.touches[0]){ showTipAt(e.touches[0].clientX); e.preventDefault(); } // prevent page scroll while scrubbing
+  },{passive:false});
+  wrap.addEventListener("touchend",hideTip);
+  wrap.addEventListener("touchcancel",hideTip);
 }
 
 /* ============ renders ============ */
