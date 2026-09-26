@@ -136,10 +136,12 @@ h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.01em}
 .chart-wrap{position:relative;margin-top:0}
 .chart-wrap svg{display:block;width:100%;height:auto}
 /* chart with axes */
-.chart-outer{display:flex;gap:8px;margin-top:14px}
-.chart-yaxis{flex:0 0 auto;display:flex;flex-direction:column;justify-content:space-between;padding:16px 0 24px;font-family:var(--mono);font-size:10.5px;color:var(--faint);text-align:right;min-width:52px}
-.chart-plot{flex:1;min-width:0}
-.chart-xaxis{display:flex;justify-content:space-between;margin-top:4px;font-family:var(--mono);font-size:10.5px;color:var(--faint);overflow:hidden}
+.chart-outer{margin-top:14px}
+.chart-row{display:flex;gap:8px;align-items:stretch}
+.chart-yaxis{flex:0 0 auto;position:relative;font-family:var(--mono);font-size:10.5px;color:var(--faint);text-align:right;min-width:52px}
+.chart-yaxis span{position:absolute;right:0;transform:translateY(-50%);white-space:nowrap;line-height:1}
+.chart-wrap{flex:1;min-width:0}
+.chart-xaxis{display:flex;justify-content:space-between;margin-top:4px;margin-left:60px;font-family:var(--mono);font-size:10.5px;color:var(--faint);overflow:hidden}
 .chart-xaxis span{white-space:nowrap}
 .tip{
   position:absolute;pointer-events:none;background:var(--panel-2);border:1px solid var(--line);
@@ -344,8 +346,8 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
   .hero-top{gap:12px}
   .hero-right{align-items:flex-start;flex-direction:column;width:100%}
   .hero-right .heroeq{align-items:flex-start;text-align:left}
-  .chart-yaxis{min-width:44px;font-size:9.5px}
-  .chart-xaxis{font-size:9px}
+  .chart-yaxis{min-width:40px;font-size:9.5px}
+  .chart-xaxis{font-size:9px;margin-left:48px}
   /* calendar: keep cells inside the viewport on phones */
   .panel{padding:14px}
   .cal{gap:4px}
@@ -438,14 +440,14 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
           </div>
         </div>
         <div class="chart-outer">
-          <div class="chart-yaxis" id="chartYAxis"></div>
-          <div class="chart-plot">
+          <div class="chart-row">
+            <div class="chart-yaxis" id="chartYAxis"></div>
             <div class="chart-wrap" id="chartWrap">
               <svg id="mainChart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg>
               <div class="tip" id="chartTip"></div>
             </div>
-            <div class="chart-xaxis" id="chartXAxis"></div>
           </div>
+          <div class="chart-xaxis" id="chartXAxis"></div>
         </div>
       </div>
 
@@ -1208,8 +1210,8 @@ function drawChart(list){
     var vals=pts.map(function(p){return ui.chart==="dd"?p.dd:p.eq});
     var min=Math.min.apply(null,vals), max=Math.max.apply(null,vals);
     if(ui.chart==="dd"){max=0; min=Math.min(min,-0.5)} else {var padv=(max-min)*.12||1; max+=padv; min-=padv}
-    // axis labels (equity/drawdown views only)
-    renderYAxis(min, max, ui.chart==="dd");
+    // axis labels (equity/drawdown views only) — pass exact plot box so labels line up with the grid
+    renderYAxis(min, max, ui.chart==="dd", pad.t, pad.b, H);
     renderXAxis(pts);
     var sx=function(i){return pad.l+(W-pad.l-pad.r)*(pts.length===1?.5:i/(pts.length-1))};
     var sy=function(v){return pad.t+(H-pad.t-pad.b)*(1-(v-min)/((max-min)||1))};
@@ -1253,19 +1255,25 @@ function niceStep(range, targetTicks){
   var step = norm<1.5?1 : norm<3?2 : norm<7?5 : 10;
   return step*mag;
 }
-// Y axis: round equity labels from bottom to top (e.g. 4900,5000,5100…)
-function renderYAxis(minV, maxV, isPct){
+// Y axis: labels positioned at the EXACT height matching the chart's scale/grid.
+// minV/maxV are the same values used to draw the line, and padTop/padBot/H describe the SVG plot box.
+function renderYAxis(minV, maxV, isPct, padTop, padBot, H){
   var el=$("#chartYAxis"); if(!el) return;
   if(minV===maxV){ maxV=minV+1; }
+  padTop=padTop||16; padBot=padBot||24; H=H||260;
+  var plotTopPct = padTop/H*100;                 // where the plot area starts (%) from the top
+  var plotHpct   = (H-padTop-padBot)/H*100;       // plot area height (%)
   var step=niceStep(maxV-minV, 4);
   var start=Math.ceil(minV/step)*step;
   var ticks=[];
-  for(var v=start; v<=maxV+1e-6 && ticks.length<9; v+=step) ticks.push(v);
+  for(var v=start; v<=maxV+1e-6 && ticks.length<12; v+=step) ticks.push(v);
   if(!ticks.length) ticks=[minV,maxV];
-  // top-to-bottom order for the column
-  ticks.reverse();
   el.innerHTML=ticks.map(function(v){
-    return '<span>'+(isPct ? (v>=0?"":"")+v.toFixed(1)+"%" : money0(v))+'</span>';
+    // same mapping as the chart's sy(): value -> vertical position
+    var frac=(v-minV)/((maxV-minV)||1);           // 0 at bottom, 1 at top
+    var topPct = plotTopPct + (1-frac)*plotHpct;  // convert to % from top
+    var label = isPct ? v.toFixed(1)+"%" : money0(v);
+    return '<span style="top:'+topPct.toFixed(2)+'%">'+label+'</span>';
   }).join("");
 }
 // X axis: month + year labels only (no day), spread across the series
