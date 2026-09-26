@@ -1275,14 +1275,20 @@ function renderXAxis(chronList){
     var d=new Date(dstr+"T00:00:00"); if(isNaN(d)) return "";
     return d.toLocaleDateString(undefined,{month:"short",year:"numeric"});
   };
-  // pick up to 6 evenly-spaced points; label unique month/year
-  var labels=[], n=chronList.length, count=Math.min(6, n);
-  for(var i=0;i<count;i++){
-    var idx=count===1?0:Math.round(i*(n-1)/(count-1));
-    labels.push(fmtMonth(chronList[idx].date));
+  // collect the distinct months present in the series, in order
+  var months=[], seen={};
+  chronList.forEach(function(t){
+    var lbl=fmtMonth(t.date);
+    if(lbl && !seen[lbl]){ seen[lbl]=1; months.push(lbl); }
+  });
+  // if there are too many months, thin them out to ~6 evenly-spaced
+  var maxLabels=6;
+  if(months.length>maxLabels){
+    var thinned=[], step=(months.length-1)/(maxLabels-1);
+    for(var i=0;i<maxLabels;i++) thinned.push(months[Math.round(i*step)]);
+    months=thinned;
   }
-  // de-dup consecutive identical labels (keep spacing by using spans)
-  el.innerHTML=labels.map(function(l){return '<span>'+esc(l)+'</span>';}).join("");
+  el.innerHTML=months.map(function(l){return '<span>'+esc(l)+'</span>';}).join("");
 }
 function wireChartHover(){
   var wrap=$("#chartWrap"), svg=$("#mainChart"), tip=$("#chartTip");
