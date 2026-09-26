@@ -62,6 +62,22 @@ You can bring your MT5 history in without typing anything:
 
 Re-importing the same/updated report later is safe — trades already imported are automatically skipped (deduped by MT5 position id). This is a **manual pull** (not live streaming): export + import again whenever you want the latest trades. CSV history exports are also supported.
 
+## Install as a phone app (PWA)
+
+Mate Trader is an installable **Progressive Web App** — no App Store / Play Store needed. It adds an MT icon to the home screen and opens full-screen like a normal app (and works offline).
+
+**Android (Chrome):**
+1. Open `https://a7brth.github.io/MATE-TRADER/`
+2. Tap the ⋮ menu → **Install app** / **Add to Home screen**
+3. Confirm — the MT icon appears on the home screen.
+
+**iPhone / iPad (Safari):**
+1. Open `https://a7brth.github.io/MATE-TRADER/` in **Safari**
+2. Tap the **Share** button → **Add to Home Screen**
+3. Tap **Add** — the MT icon appears on the home screen.
+
+Open it from the icon and it runs full-screen (no address bar). Data still syncs across devices via the same Firebase sign-in.
+
 ## Files
 
 | File | Purpose |
