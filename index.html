@@ -127,6 +127,7 @@ h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.01em}
 }
 .hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
 .netpnl{font-family:var(--mono);font-size:44px;font-weight:600;line-height:1;letter-spacing:-.02em}
+.eq-now{font-family:var(--mono);font-size:26px;font-weight:700;line-height:1.1;margin-top:4px}
 .netlabel{font-size:12px;color:var(--muted);margin-bottom:7px}
 .netmeta{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
 .chart-wrap{position:relative;margin-top:14px}
@@ -136,7 +137,7 @@ h2{font-size:14px;margin:0;font-weight:600;letter-spacing:.01em}
   border-radius:8px;padding:7px 10px;font-size:12px;box-shadow:var(--shadow);opacity:0;transition:opacity .12s;white-space:nowrap;z-index:5;
 }
 .tip.on{opacity:1}
-#chartCross,#chartDot{transition:cx .08s linear,cy .08s linear,x1 .08s linear,x2 .08s linear,opacity .15s ease;pointer-events:none}
+#chartCross,#chartDot,#eqCross,#eqDot{transition:cx .08s linear,cy .08s linear,x1 .08s linear,x2 .08s linear,opacity .15s ease;pointer-events:none}
 
 /* ---------- stats ---------- */
 .stats{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line-soft);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:18px}
@@ -416,6 +417,28 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
         <div class="chart-wrap" id="chartWrap">
           <svg id="mainChart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg>
           <div class="tip" id="chartTip"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Equity line</h2>
+            <div class="eq-now" id="eqNow">$0.00</div>
+            <div class="dim" id="eqSub" style="font-size:12px">starting balance $0</div>
+          </div>
+          <div class="seg" id="eqSeg">
+            <button data-eq="7">1W</button>
+            <button data-eq="30">1M</button>
+            <button data-eq="90">3M</button>
+            <button data-eq="180">6M</button>
+            <button data-eq="365">1Y</button>
+            <button data-eq="all" class="on">All</button>
+          </div>
+        </div>
+        <div class="chart-wrap" id="eqWrap">
+          <svg id="eqChart" viewBox="0 0 900 260" preserveAspectRatio="none"></svg>
+          <div class="tip" id="eqTip"></div>
         </div>
       </div>
 
@@ -745,6 +768,21 @@ svg.pie-dimming .pie-slice.hot{opacity:1;stroke:#fff;stroke-width:2}
   <img id="lightboxImg" alt="Chart screenshot full size" />
 </div>
 
+<!-- First-run setup modal -->
+<div class="modal" id="setupModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head"><h2>Welcome to Mate Trader</h2></div>
+    <p class="dim" style="font-size:13px;margin:0 0 14px;line-height:1.55">Let's set up your account. What's your <b>starting balance</b>? Your equity line will begin from here.</p>
+    <form id="setupForm">
+      <div style="display:flex;gap:8px">
+        <label class="field" style="flex:0 0 90px"><span>Currency</span><input class="input" type="text" id="setup-cur" maxlength="3" value="$" /></label>
+        <label class="field" style="flex:1"><span>Starting balance</span><input class="input" type="number" step="any" id="setup-start" placeholder="1000" autofocus /></label>
+      </div>
+      <button class="btn btn-primary" type="submit" style="width:100%;margin-top:16px">Start journaling</button>
+    </form>
+  </div>
+</div>
+
 <!-- Auth modal -->
 <div class="modal" id="authModal" hidden>
   <div class="modal-card">
@@ -825,13 +863,13 @@ var SETUPS = ["Break of structure","Change of character","Order block","Fair val
 var EMOTIONS = ["Calm","Confident","Hesitant","FOMO","Impatient","Revenge","Bored"];
 var MISTAKES = ["Followed the plan","Early entry","Late entry","No stop","Moved stop","Cut winner early","Oversized","Chased","Traded off-plan session"];
 var DEFAULT_INST = {"XAUUSD":100,"US100":20,"US500":50,"EURUSD":100000,"GBPUSD":100000,"BTCUSD":1};
-var DEFAULTS = {startBalance:1000, riskPct:1, currency:"$", defaultSymbol:"XAUUSD", instruments:DEFAULT_INST};
+var DEFAULTS = {startBalance:1000, riskPct:1, currency:"$", defaultSymbol:"XAUUSD", onboarded:false, instruments:DEFAULT_INST};
 var KEY = "meridian.journal.v1";
 
 /* ============ state ============ */
 var state = {trades:[], settings:Object.assign({}, DEFAULTS)};
 var db = null, dbDoc = null;
-var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", pie:"setup", dashPie:"setup", sort:{key:"date",dir:-1},
+var ui = {view:"dashboard", range:"30", chart:"equity", metric:"pnl", pie:"setup", dashPie:"setup", eqRange:"all", sort:{key:"date",dir:-1},
           openRow:null, calMonth:new Date().getMonth(), calYear:new Date().getFullYear(),
           emo:"", mistakes:[], rating:0, shots:[], dayFilter:null};
 
@@ -1221,6 +1259,86 @@ function wireChartHover(){
   });
 }
 
+/* ---- dedicated Equity Line chart (starts from the account's starting balance) ---- */
+function eqInRange(list){
+  if(ui.eqRange==="all") return list;
+  var days=parseInt(ui.eqRange,10);
+  var cut=new Date(); cut.setDate(cut.getDate()-days); cut.setHours(0,0,0,0);
+  return list.filter(function(t){ return new Date(t.date+"T00:00:00")>=cut; });
+}
+function drawEquityLine(){
+  var svg=$("#eqChart"); if(!svg) return;
+  var start=state.settings.startBalance||0;
+  var W=900,H=260, pad={l:8,r:8,t:16,b:24};
+  // header numbers
+  var full=stats(state.trades);
+  $("#eqNow").textContent=money0(full.equity);
+  $("#eqNow").className="eq-now "+(full.equity>=start?"up":"down");
+  $("#eqSub").textContent="starting balance "+money0(start);
+
+  // Build equity points for the selected range. Equity always anchors to the starting balance:
+  // for a windowed range we start the line at (startBalance + P&L before the window).
+  var chron=byDateAsc(state.trades);
+  var inRangeList=eqInRange(state.trades);
+  var priorPnl=0;
+  if(ui.eqRange!=="all"){
+    var days=parseInt(ui.eqRange,10);
+    var cut=new Date(); cut.setDate(cut.getDate()-days); cut.setHours(0,0,0,0);
+    chron.forEach(function(t){ if(new Date(t.date+"T00:00:00")<cut) priorPnl+=calcPnl(t); });
+  }
+  var baseEq=start+priorPnl;
+  var chronR=byDateAsc(inRangeList);
+  var eq=baseEq, pts=[{date:null, eq:baseEq}]; // anchor point at the window's start
+  chronR.forEach(function(t){ eq+=calcPnl(t); pts.push({date:t.date, eq:eq, pnl:calcPnl(t), sym:t.symbol}); });
+
+  var grid="";
+  for(var g=0;g<=4;g++){ var y=pad.t+(H-pad.t-pad.b)*g/4; grid+='<line x1="'+pad.l+'" y1="'+y+'" x2="'+(W-pad.r)+'" y2="'+y+'" stroke="var(--line-soft)" stroke-width="1"/>'; }
+
+  if(pts.length<=1){
+    svg.innerHTML=grid+'<text x="450" y="130" text-anchor="middle" fill="var(--faint)" font-size="15" font-family="Inter,sans-serif">No trades in this period — equity holds at '+money0(baseEq)+'</text>';
+    svg._tips=[]; svg._W=W; return;
+  }
+  var vals=pts.map(function(p){return p.eq;});
+  var min=Math.min.apply(null,vals), max=Math.max.apply(null,vals);
+  var padv=(max-min)*.12||Math.max(1,Math.abs(max)*.02); max+=padv; min-=padv;
+  var sx=function(i){return pad.l+(W-pad.l-pad.r)*(pts.length===1?.5:i/(pts.length-1));};
+  var sy=function(v){return pad.t+(H-pad.t-pad.b)*(1-(v-min)/((max-min)||1));};
+  var line="", tipData=[];
+  vals.forEach(function(v,i){ var X=sx(i),Y=sy(v); line+=(i?"L":"M")+X.toFixed(1)+" "+Y.toFixed(1);
+    tipData.push({x:X,y:Y,label:(pts[i].date?fmtDate(pts[i].date):"start")+(pts[i].sym?" · "+esc(pts[i].sym):""),value:money0(v)+" equity",good:v>=baseEq}); });
+  var area=line+"L"+sx(pts.length-1).toFixed(1)+" "+(H-pad.b)+"L"+sx(0).toFixed(1)+" "+(H-pad.b)+"Z";
+  var color="var(--blue)";
+  var html='<defs><linearGradient id="eqGrad" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="'+color+'" stop-opacity=".32"/><stop offset="100%" stop-color="'+color+'" stop-opacity="0"/></linearGradient></defs>';
+  html+='<path d="'+area+'" fill="url(#eqGrad)"/>';
+  // starting-balance baseline
+  var by=sy(start); if(by>pad.t&&by<H-pad.b) html+='<line x1="'+pad.l+'" y1="'+by+'" x2="'+(W-pad.r)+'" y2="'+by+'" stroke="var(--gold-dim)" stroke-dasharray="4 4" stroke-width="1"/>';
+  html+='<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>';
+  html+='<line id="eqCross" x1="0" y1="'+pad.t+'" x2="0" y2="'+(H-pad.b)+'" stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 4" opacity="0"/>';
+  html+='<circle id="eqDot" r="4.5" fill="'+color+'" stroke="var(--panel)" stroke-width="2" opacity="0"/>';
+  svg.innerHTML=grid+html; svg._tips=tipData; svg._W=W;
+}
+function wireEqHover(){
+  var wrap=$("#eqWrap"); if(!wrap) return;
+  var svg=$("#eqChart"), tip=$("#eqTip");
+  wrap.addEventListener("mousemove",function(e){
+    var tips=svg._tips; if(!tips||!tips.length){tip.classList.remove("on");return;}
+    var rect=svg.getBoundingClientRect(); var rel=(e.clientX-rect.left)/rect.width*svg._W;
+    var best=0,bd=1e9; tips.forEach(function(t,i){var d=Math.abs(t.x-rel); if(d<bd){bd=d;best=i;}});
+    var t=tips[best];
+    tip.innerHTML='<div class="dim" style="font-size:11px">'+t.label+'</div><b class="mono '+(t.good?"up":"down")+'">'+t.value+'</b>';
+    tip.classList.add("on");
+    var px=t.x/svg._W*rect.width;
+    tip.style.left=Math.max(4,Math.min(rect.width-tip.offsetWidth-4,px-tip.offsetWidth/2))+"px"; tip.style.top="6px";
+    var cross=document.getElementById("eqCross"); if(cross){cross.setAttribute("x1",t.x);cross.setAttribute("x2",t.x);cross.setAttribute("opacity","1");}
+    var dot=document.getElementById("eqDot"); if(dot){dot.setAttribute("cx",t.x);dot.setAttribute("cy",t.y);dot.setAttribute("opacity","1");}
+  });
+  wrap.addEventListener("mouseleave",function(){
+    tip.classList.remove("on");
+    var cross=document.getElementById("eqCross"); if(cross) cross.setAttribute("opacity","0");
+    var dot=document.getElementById("eqDot"); if(dot) dot.setAttribute("opacity","0");
+  });
+}
+
 /* ============ renders ============ */
 function renderAll(){
   renderDashboard(); renderTrades(); renderCalendar(); renderAnalytics(); renderReport(); renderSettingsForm(); fillSelects();
@@ -1262,6 +1380,7 @@ function renderDashboard(){
 
   breakdown("#bdSession", group(list,"session"), "pnl");
   breakdown("#bdSetupMini", group(list,"setup").slice(0,6), "pnl");
+  drawEquityLine();
   drawDashPie();
   $("#recentHolder").innerHTML = list.length
     ? tableHtml(sorted(list).slice(0,6), false)
@@ -2162,6 +2281,15 @@ function wire(){
     $$("#chartSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
     drawChart(inRange(state.trades));
   });
+  var eqSeg=$("#eqSeg");
+  if(eqSeg){
+    eqSeg.addEventListener("click",function(e){
+      var b=e.target.closest("button"); if(!b) return;
+      ui.eqRange=b.dataset.eq;
+      $$("#eqSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
+      drawEquityLine();
+    });
+  }
   var pieSeg=$("#pieSeg");
   if(pieSeg){
     pieSeg.addEventListener("click",function(e){
@@ -2268,7 +2396,7 @@ function wire(){
     $("#"+id).addEventListener("input",renderRisk);
   });
 
-  $("#set-start").addEventListener("input",function(){state.settings.startBalance=num(this.value);save();renderAll()});
+  $("#set-start").addEventListener("input",function(){state.settings.startBalance=num(this.value);state.settings.onboarded=true;save();renderAll()});
   $("#set-risk").addEventListener("input",function(){state.settings.riskPct=num(this.value);save();$("#rk-pct").value=this.value});
   $("#set-cur").addEventListener("input",function(){state.settings.currency=this.value||"$";save();renderAll()});
   $("#set-sym").addEventListener("change",function(){state.settings.defaultSymbol=this.value;save()});
@@ -2328,8 +2456,9 @@ function wire(){
     drawChart(inRange(state.trades));
   });
 
-  window.addEventListener("resize",function(){drawChart(inRange(state.trades))});
+  window.addEventListener("resize",function(){drawChart(inRange(state.trades)); drawEquityLine();});
   wireChartHover();
+  wireEqHover();
 }
 function downloadFile(name, text, type){
   try{
@@ -2356,7 +2485,38 @@ function boot(){
   $("#set-sym").value=state.settings.defaultSymbol;
   renderAll(); renderRisk();
   renderAuthState();
+  wireSetup();
+  maybeShowSetup(saved);
   connect();
+}
+/* First-run onboarding: ask for the starting balance so equity auto-sets from it. */
+function maybeShowSetup(saved){
+  // brand-new journal: nothing saved yet, and not onboarded before
+  var isNew = !saved && !state.trades.length && !state.settings.onboarded;
+  if(!isNew) return;
+  var m=$("#setupModal"); if(!m) return;
+  $("#setup-cur").value = state.settings.currency||"$";
+  $("#setup-start").value = "";
+  m.hidden=false;
+  setTimeout(function(){ var el=$("#setup-start"); if(el) el.focus(); },50);
+}
+function wireSetup(){
+  var form=$("#setupForm"); if(!form) return;
+  form.addEventListener("submit",function(e){
+    e.preventDefault();
+    var bal=num($("#setup-start").value);
+    var cur=($("#setup-cur").value||"$").trim()||"$";
+    if(!bal || bal<=0){ toast("Enter your starting balance"); return; }
+    state.settings.startBalance=bal;
+    state.settings.currency=cur;
+    state.settings.onboarded=true;
+    save();
+    // reflect in the settings inputs + risk calc + everything
+    $("#set-start").value=bal; $("#set-cur").value=cur; $("#rk-bal").value=bal;
+    $("#setupModal").hidden=true;
+    renderAll(); renderRisk();
+    toast("Account set — starting balance "+money0(bal));
+  });
 }
 if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",boot); else boot();
 })();
